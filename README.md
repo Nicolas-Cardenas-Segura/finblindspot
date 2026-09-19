@@ -57,3 +57,9 @@ This project follows [OpenSpec](https://github.com/openspec/openspec) to maintai
 ## 🚀 Getting Started
 
 *Environment configuration and setup instructions will be finalized in Phase 1 of the implementation plan.*
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
