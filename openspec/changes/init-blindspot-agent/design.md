@@ -58,6 +58,7 @@ The product content is frozen in [`finance-blind-spot-v1-spec.html`](../../../fi
 ### 8. Framework & Routing: Mastra on Node.js / TypeScript
 - **Decision**: Use `@mastra/core` `Agent` for the two model calls (extraction, explanation). Telegram transport: Mastra channel adapter if one exists, otherwise `grammy` long polling feeding `handleMessage`.
 - **Verification**: Adapter availability is unverified — task 1.5 records the outcome here.
+- **Task 1.5 outcome (verified against `@mastra/core@1.66.0`)**: Telegram transport: grammy polling. Mastra does ship a Telegram channel (`@chat-adapter/telegram`, `channels.adapters.telegram`), but it routes inbound messages straight to the `Agent`'s model, bypassing the deterministic `handleMessage` pipeline (redact → intent → state machine → engine), so it cannot be used here. Task 12.4 uses `grammy` long polling (`new Bot(token)`, `bot.on('message:text')`, `bot.start()`).
 
 ### 9. Model Selection: Nebius Token Factory
 - **Decision**: `deepseek-ai/DeepSeek-V4.1-Flash` for extraction and explanation; `nvidia/Nemotron-3_5-Lightning` for the outbound classifier.

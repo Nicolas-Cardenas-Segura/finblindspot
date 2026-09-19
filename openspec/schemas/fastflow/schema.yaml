@@ -1,0 +1,72 @@
+name: fastflow
+version: 1
+description: OpenSpec with bounded task packets and parent-orchestrated economical workers
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Problem, scope, and affected capabilities
+    template: proposal.md
+    instruction: |
+      State why the change matters, what changes, and affected capabilities.
+      Reuse existing capability paths. Keep the proposal under one page.
+      Resolve scope questions with the user before implementation.
+    requires: []
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Testable behavior and acceptance scenarios
+    template: spec.md
+    instruction: |
+      Write one delta spec per affected capability. Use ADDED, MODIFIED,
+      REMOVED or RENAMED Requirements. Each Requirement uses SHALL/MUST
+      and has at least one four-hash Scenario with WHEN/THEN.
+      MODIFIED requirements include their complete updated scenarios.
+      New capabilities include a Purpose of at least 50 characters.
+      Do not trade acceptance criteria for lower model cost.
+    requires: [proposal]
+  - id: design
+    generates: design.md
+    description: Decisions, interfaces, risk, and verification strategy
+    template: design.md
+    instruction: |
+      Resolve interfaces and dependencies before delegating implementation.
+      For small changes write a few decision bullets, not a long essay.
+      Identify security, data-loss, migration, and ambiguous tasks as high risk.
+      Record exact project test/lint/typecheck commands and required setup.
+    requires: [proposal]
+  - id: tasks
+    generates: tasks.md
+    description: Small, verifiable implementation tasks
+    template: tasks.md
+    instruction: |
+      Every task is '- [ ] X.Y Description; verification command or behavior'.
+      Use unique X.Y IDs. Prefer one coherent task over many trivial agents.
+      Resolve architecture in the parent; tasks should have bounded context.
+      Order dependencies and include an integration check.
+    requires: [specs, design]
+  - id: execution
+    generates: execution-plan.json
+    description: Dependency graph, file ownership, model tiers, and budgets
+    template: execution-plan.md
+    instruction: |
+      Emit JSON only, following the template. Map tasks.md IDs one-to-one.
+      Use actual repository-relative paths, short line ranges, a full current
+      Git commit hash, acceptance criteria and runnable verification commands.
+      No unresolved placeholders. Assign cheap to bounded low-risk work;
+      medium/high risk is automatically routed to at least balanced/strong.
+      Default maxParallel=2 and maxAttempts=2. Estimate the whole worker
+      attempt, including tool reads and output; account for parent/review
+      overhead. Read the installed openspec-fastflow skill.
+      Validate using node .agents/skills/openspec-fastflow/scripts/flow.mjs
+      check openspec/changes/<change>/execution-plan.json.
+    requires: [tasks]
+apply:
+  requires: [execution]
+  tracks: tasks.md
+  instruction: |
+    The user's main agent owns orchestration, integration, and task completion.
+    Load .agents/skills/openspec-fastflow/SKILL.md and follow its protocol.
+    Use ready and packet helpers before dispatch; they never start agents.
+    Spawn only independent, scoped tasks through the harness's actual tools.
+    Workers never update tasks.md, execution-plan.json, or OpenSpec artifacts.
+    Parent verifies each patch and records evidence before checking a task.
+    Use a serial fallback when independent sessions are unavailable.
