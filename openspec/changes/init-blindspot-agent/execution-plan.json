@@ -1185,7 +1185,7 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
@@ -1220,8 +1220,10 @@
       "acceptance": [
         "`npm run typecheck` exits 0 (method bodies may throw `not implemented` until 8.2–8.3)."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "8.2",
@@ -1232,8 +1234,8 @@
       ],
       "risk": "medium",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -1270,8 +1272,10 @@
       "acceptance": [
         "`tests/store/assessments.test.ts` passes with: insert two complete assessments for `u1` -> `latestComplete` returns the later one and `listAssessments` length 2; inserting the same id twice throws; `saveState` then `loadState` round-trips; `deleteUserAssessments('u1')` returns counts and `listAssessments('u1')` is empty; the file source contains no `UPDATE assessments`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "8.3",
@@ -1282,8 +1286,8 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -1320,8 +1324,10 @@
       "acceptance": [
         "`tests/store/nudges.test.ts` passes with: insert due and future nudges -> `dueNudges(now)` returns only the due one; after `markNudgeSent` it returns none; `cancelPendingNudges('u1')` returns 1 and the future nudge is no longer due at any time; a nudge with `sent_at` set is never returned."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "8.4",
@@ -1333,8 +1339,8 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -1371,8 +1377,10 @@
       "acceptance": [
         "`tests/store/triggers.test.ts` passes with: log 3 triggers -> `countTriggers()` is 3; `countTriggers(futureIso)` is 0; `deleteUser('u1')` returns `{ assessments, states, nudges, triggers }` and subsequent counts are 0."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "9.1",
@@ -1818,7 +1826,7 @@
       ],
       "risk": "high",
       "tier": "balanced",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
@@ -1860,8 +1868,10 @@
       "acceptance": [
         "`tests/explain/render.test.ts` passes with: `roundHundred(348379) === 348400`; `renderResults(CASES.D assessment)` contains `\"At 65\"`, `\"166,400\"`, `\"585\"`, `\"not included in this projection to age 65\"`; `renderResults` with `mode 'no_target'` contains no `\"Estimated capital\"`; `renderActionPlan` output lists exactly 3 titles for an assessment with 5 fired rules; `renderProgress` with `assumptions_changed true` contains the assumptions sentence."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "11.1",
@@ -1931,7 +1941,7 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
@@ -1974,8 +1984,10 @@
       "acceptance": [
         "`tests/interview/revisit.test.ts` passes with: previous `cash_total null` -> first `currentField` is `cash_total`; answering `'same'` on `age` stores `previous.answers.age`; completing with all `'same'` reproduces `previous.answers` exactly."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "11.3",
