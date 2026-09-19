@@ -1538,7 +1538,7 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
@@ -1580,8 +1580,10 @@
       "acceptance": [
         "`tests/guardrail/numbers.test.ts` passes with: draft `\"about 1.8 months\"` allowed when `cash_total/monthly_spending = 1.8`; `\"€166,400 in today's terms\"` allowed for `CASES.D`; `\"put 60% in equities\"` -> invented; `\"20%\"` allowed when the library text contains `20%`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "9.5",
@@ -1856,7 +1858,7 @@
       ],
       "risk": "high",
       "tier": "balanced",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
@@ -1898,8 +1900,10 @@
       "acceptance": [
         "`tests/interview/stateMachine.test.ts` passes with: first field is `consent`; after `has_partner 'just_me'` the machine skips `decision_maker` and `partner_knows`; after `dependants 0` it skips `education_funded`; answering every field with valid values from `BASE` yields `isComplete true` and `AnswersSchema.safeParse(s.answers).success`; two pension rows produce `answers.pensions.length === 2`; `applyAnswer(s, null)` on `cash_total` stores `null`; `applyCorrection(s, 'spend_housing', 1500)` while on `cash_total` sets `answers.spend_housing === 1500` and `currentField(s).id` is still `cash_total`; `applyCorrection` on an unanswered field throws."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "11.2",
