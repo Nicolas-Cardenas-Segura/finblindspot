@@ -91,15 +91,22 @@ Out of scope for the MVP: custom web/mobile UI, banking API or credential integr
 
 ## 🗺️ Implementation Roadmap
 
-Tracked in [`tasks.md`](openspec/changes/init-blindspot-agent/tasks.md); no phase is implemented yet.
+Tracked in [`tasks.md`](openspec/changes/init-blindspot-agent/tasks.md) as small, single-file tasks (each names its target path, exported signature, and a mechanically checkable "Done when"); the project layout and shared types they reference are in [`design.md`](openspec/changes/init-blindspot-agent/design.md). No group is implemented yet.
 
-1. Project initialization & skeleton (TypeScript project, Nebius client, Mastra + Telegram adapter).
-2. Conversational interview machine & Zod-validated profile extraction.
-3. Pure mathematical calculation engine with unit tests.
-4. Threshold rules engine & outbound advice guardrail.
-5. Baseline snapshot & longitudinal comparison.
-6. Galtea adversarial evaluation (find, fix, prove).
-7. Documentation & end-to-end rehearsal.
+1. Project skeleton & external API spikes (Nebius model IDs, Telegram transport).
+2. Configuration tables (thresholds, FX rates).
+3. Profile schema & test fixtures.
+4. Privacy filter.
+5. Calculation engine (five indicators, ranking, scorecard).
+6. SQLite store (snapshots, compliance triggers, erasure).
+7. LLM prompts, extraction, guardrail.
+8. Interview state machine & revisit.
+9. Rendering & explanation.
+10. Agent, handlers, Telegram transport.
+11. Galtea adversarial evaluation (baseline, fix, re-run).
+12. Documentation & end-to-end rehearsal.
+
+The task-granularity rules that produced this list live in [`openspec/config.yaml`](openspec/config.yaml) under `rules:` and are project-agnostic — copy that block into any OpenSpec repo whose tasks will be executed by small or fast models.
 
 ---
 

@@ -69,12 +69,180 @@ See [proposal.md](proposal.md) for background and motivation. The project is an 
 - **Rationale**: The privacy invariant is only meaningful if PII never leaves the process; an LLM-based detector would already have transmitted the data.
 
 ### 8. Storage Architecture and Data Lifecycle
-- **Decision**: SQLite via lightweight ORM / query builder or in-memory snapshot store, keyed by Telegram user id. Two tables: `snapshots` (profile + scorecard + timestamp + label such as `baseline` or `revisit`) and `compliance_triggers` (see Decision 4). A `/forget` command deletes every row for the requesting user id. No retention beyond the demo; the datastore is documented as disposable.
+- **Decision**: SQLite via `better-sqlite3` (path `:memory:` for tests), keyed by Telegram user id. Two tables: `snapshots` (profile + scorecard + timestamp + label such as `baseline` or `revisit`) and `compliance_triggers` (see Decision 4). A `/forget` command deletes every row for the requesting user id. No retention beyond the demo; the datastore is documented as disposable.
 - **Rationale**: Minimizes setup friction and keeps baseline snapshots reproducible across demo runs, while giving the user an erasure path consistent with the data-minimisation invariant.
 
 ### 9. Simulated Revisit
 - **Decision**: `/revisit` re-asks only the mutable numeric fields (liquid cash, monthly expenditure, debt service, income, largest asset share, number of pensions with unknown values); unchanged answers are carried forward from the baseline. The new snapshot is labelled `revisit` with the real timestamp; "six months later" is a presentation label, not a fake clock. If no baseline exists, the bot explains and offers to start the full assessment.
 - **Rationale**: Keeps the follow-up under two minutes for the demo while producing a genuine then-versus-now delta.
+
+## Project Layout
+
+All paths are relative to the repo root. Tests mirror `src/` under `tests/` with a `.test.ts` suffix.
+
+```
+package.json, tsconfig.json, vitest.config.ts, .env.example
+src/
+  index.ts                         boot: load env, open store, build agent, start Telegram transport
+  config/
+    env.ts                         zod-validated process.env -> Env
+    thresholds.ts                  THRESHOLDS defaults + INDICATOR_PRIORITY (Decision 5)
+    fxRates.ts                     FX_RATES static table with `asOf` date (Decision 6)
+  llm/
+    nebius.ts                      OpenAI-SDK client for Nebius + MODELS constants
+    prompts.ts                     SYSTEM_PROMPT, EXTRACTION_PROMPT, EXPLANATION_PROMPT, GUARDRAIL_PROMPT, FALLBACK_MESSAGES
+  privacy/
+    sensitiveFilter.ts             redactSensitive() (Decision 7)
+  profile/
+    schema.ts                      zod schemas + inferred types for FinancialProfile and parts
+    extract.ts                     extractProfileUpdate(): LLM turn -> partial profile
+  interview/
+    domains.ts                     INTERVIEW_DOMAINS ordered list with question templates + required fields
+    stateMachine.ts                nextQuestion(), applyAnswer(), isComplete()
+    revisit.ts                     REVISIT_FIELDS + buildRevisitProfile()
+  engine/
+    fx.ts                          toBaseCurrency()
+    indicators/
+      runway.ts                    computeRunway()
+      debt.ts                      computeDebtExposure()
+      retirement.ts                computeRetirementVisibility()
+      concentration.ts             computeAssetConcentration()
+      crossBorder.ts               computeCrossBorderComplexity()
+    score.ts                       scoreIndicator(), buildScorecard()
+    rank.ts                        rankBlindspots()
+  guardrail/
+    classifier.ts                  classifyOutbound(): text -> Verdict
+    guard.ts                       guardedGenerate(): generate -> classify -> retry -> fallback
+  explain/
+    explain.ts                     explainScorecard(): LLM prose per blind spot via guardedGenerate
+    render.ts                      renderScorecard(), renderComparison(), renderWelcome() templates
+  store/
+    db.ts                          openStore(path): Store (better-sqlite3)
+    snapshots.ts                   snapshot table functions
+    triggers.ts                    compliance_triggers table functions
+  agent/
+    agent.ts                       Mastra Agent definition (model, instructions, memory)
+    telegram.ts                    startTelegram(): polling transport -> handleMessage
+    handlers.ts                    handleMessage(): /start, /revisit, /forget, free text
+eval/
+  galtea/
+    prompts.json                   adversarial prompt set
+    run.ts                         Galtea runner -> metrics JSON
+tests/                             mirrors src/
+```
+
+## Shared Types & Interfaces
+
+Tasks reference these names verbatim. Owner file is given in brackets; consumers import from it.
+
+```ts
+// [src/profile/schema.ts]
+export type Currency = string;                       // ISO-4217, upper-case
+export interface Money { amount: number; currency: Currency }
+export interface PensionPot { country: string; valueKnown: boolean; value?: Money; taxStatusKnown: boolean }
+export interface AssetHolding { kind: 'cash' | 'property' | 'equities' | 'bonds' | 'crypto' | 'other'; country: string; value: Money }
+export interface FinancialProfile {
+  telegramUserId: string;
+  baseCurrency: Currency;
+  residenceCountry: string;                          // ISO-3166 alpha-2
+  age?: number;
+  retirementAge?: number;
+  monthlyNetIncome?: Money;
+  monthlyEssentialExpenditure?: Money;
+  liquidCash?: Money;
+  monthlyDebtService?: Money;
+  assets: AssetHolding[];
+  pensions: PensionPot[];
+  incomeCountries: string[];
+  taxResidencies: string[];
+}
+export const FinancialProfileSchema: z.ZodType<FinancialProfile>;
+export type ProfilePatch = Partial<Omit<FinancialProfile, 'telegramUserId'>>;
+
+// [src/engine/score.ts]
+export type IndicatorId = 'emergency_runway' | 'debt_exposure' | 'retirement_visibility' | 'asset_concentration' | 'cross_border_complexity';
+export type IndicatorState = 'GREEN' | 'AMBER' | 'RED' | 'UNKNOWN';
+export interface IndicatorResult { id: IndicatorId; value: number | null; state: IndicatorState; missingInputs: string[] }
+export interface Scorecard { indicators: IndicatorResult[]; blindspots: IndicatorId[]; baseCurrency: Currency; computedAt: string }
+
+// [src/config/thresholds.ts]
+export interface Band { green: (v: number) => boolean; amber: (v: number) => boolean }   // else RED
+export const THRESHOLDS: Record<Exclude<IndicatorId, 'retirement_visibility' | 'cross_border_complexity'>, Band>;
+export const INDICATOR_PRIORITY: IndicatorId[];     // Decision 5 tie-break order
+export const STATE_SEVERITY: Record<IndicatorState, number>;   // RED 3, AMBER 2, UNKNOWN 1, GREEN 0
+
+// [src/config/fxRates.ts]
+export const FX_RATES: { asOf: string; base: 'EUR'; rates: Record<Currency, number> };
+
+// [src/engine/fx.ts]
+export type FxResult = { ok: true; amount: number; rate: number } | { ok: false; reason: 'no_rate' };
+export function toBaseCurrency(m: Money, base: Currency): FxResult;
+
+// [src/engine/indicators/*.ts]  one per file, same shape
+export function computeRunway(p: FinancialProfile): IndicatorResult;
+export function computeDebtExposure(p: FinancialProfile): IndicatorResult;
+export function computeRetirementVisibility(p: FinancialProfile): IndicatorResult;
+export function computeAssetConcentration(p: FinancialProfile): IndicatorResult;
+export function computeCrossBorderComplexity(p: FinancialProfile): IndicatorResult;
+
+// [src/engine/rank.ts]
+export function rankBlindspots(results: IndicatorResult[]): IndicatorId[];   // up to 3 non-GREEN
+
+// [src/engine/score.ts]
+export function buildScorecard(p: FinancialProfile, now?: Date): Scorecard;
+
+// [src/privacy/sensitiveFilter.ts]
+export interface RedactionResult { text: string; redacted: boolean; kinds: Array<'iban' | 'card' | 'passport' | 'tax_id' | 'digit_run'> }
+export function redactSensitive(text: string): RedactionResult;
+
+// [src/guardrail/classifier.ts]
+export type Verdict = 'ALLOW' | 'BLOCK';
+export function classifyOutbound(text: string, deps?: { client: OpenAI }): Promise<Verdict>;
+
+// [src/guardrail/guard.ts]
+export interface GuardDeps { classify: (t: string) => Promise<Verdict>; logTrigger: (t: ComplianceTrigger) => void; maxAttempts?: number }  // default 2
+export function guardedGenerate(generate: (attempt: number) => Promise<string>, fallback: string, ctx: { userId: string }, deps: GuardDeps): Promise<{ text: string; attempts: number; fellBack: boolean }>;
+
+// [src/store/db.ts]
+export interface Snapshot { userId: string; label: 'baseline' | 'revisit'; createdAt: string; profile: FinancialProfile; scorecard: Scorecard }
+export interface ComplianceTrigger { userId: string; createdAt: string; draft: string; verdict: Verdict; attempt: number }
+export interface Store {
+  saveSnapshot(s: Snapshot): void;                  // replaces existing row with same userId+label
+  getSnapshot(userId: string, label: Snapshot['label']): Snapshot | undefined;
+  logTrigger(t: ComplianceTrigger): void;
+  countTriggers(since?: string): number;
+  deleteUser(userId: string): { snapshots: number; triggers: number };
+}
+export function openStore(path: string | ':memory:'): Store;
+
+// [src/interview/stateMachine.ts]
+export interface InterviewState { profile: FinancialProfile; domainIndex: number; awaitingClarification?: string; complete: boolean }
+export function nextQuestion(s: InterviewState): string | null;               // null when complete
+export function applyAnswer(s: InterviewState, patch: ProfilePatch): InterviewState;
+export function isComplete(s: InterviewState): boolean;
+
+// [src/interview/revisit.ts]
+export const REVISIT_FIELDS: Array<keyof FinancialProfile>;                  // Decision 9
+export function buildRevisitProfile(baseline: FinancialProfile, patch: ProfilePatch): FinancialProfile;
+
+// [src/explain/render.ts]
+export function renderWelcome(): string;
+export function renderScorecard(sc: Scorecard, explanations: Record<IndicatorId, string>): string;
+export function renderComparison(before: Scorecard, after: Scorecard): string;
+
+// [src/agent/handlers.ts]
+export interface Incoming { userId: string; text: string }
+export interface Outgoing { text: string }
+export function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<Outgoing>;
+export interface HandlerDeps { store: Store; sessions: Map<string, InterviewState>; llm: OpenAI; classify: GuardDeps['classify'] }
+```
+
+External APIs relied on:
+- `openai` (`new OpenAI({ baseURL, apiKey })`, `chat.completions.create` with `response_format: { type: 'json_object' }`).
+- `better-sqlite3` (`new Database(path)`, `prepare().run()/get()/all()`).
+- `zod` (`z.object`, `.safeParse`).
+- `@mastra/core` `Agent` class; whether a Telegram channel adapter exists is unverified - verify in task 1.4. Fallback transport is `grammy` long polling (`new Bot(token)`, `bot.on('message:text')`, `bot.start()`).
+- `galtea` SDK: API surface unverified - verify in task 7.1.
 
 ## Risks / Trade-offs
 

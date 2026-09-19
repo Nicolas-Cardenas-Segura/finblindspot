@@ -23,6 +23,40 @@ context: |
   - Data minimization: ranges and estimates only, never credentials, account
     numbers, tax IDs, or passport numbers.
 
+# Portable artifact rules. These are project-agnostic: copy the `rules:` block
+# into any OpenSpec repo whose tasks will be executed by small or fast models
+# with limited context and no room for architectural judgment.
+rules:
+  design:
+    - Include a "Project Layout" section listing every source directory and
+      file the tasks will create, with one line describing each file's
+      responsibility.
+    - Include a "Shared Types & Interfaces" section with the exact exported
+      type/function signatures that more than one task depends on. Tasks
+      must reference these names verbatim, never re-derive them.
+    - Every external dependency the tasks rely on must be named with the
+      package and the specific API used; mark anything unverified as
+      "verify in task N.M".
+  tasks:
+    - One deliverable per task. If a task needs the word "and" between two
+      artifacts, split it.
+    - Every task names the target file path(s) it creates or edits.
+    - Every task that produces code states the exported signature(s)
+      verbatim (name, parameters, return type) using the names from the
+      design's Shared Types section.
+    - Every task ends with a "Done when:" clause that is mechanically
+      checkable - a command that exits 0, a test file that passes, or a
+      single observable behaviour.
+    - Tasks are ordered so each one depends only on earlier tasks; note the
+      dependency explicitly when it is not the immediately preceding task.
+    - No task requires reading external documentation to know what to
+      build; if an API is uncertain, the first task in the group is a spike
+      that verifies it and records the result in design.md.
+    - Prefer 20-45 minute tasks for a single file over multi-hour tasks
+      spanning several files.
+    - Tests are separate tasks from the code they test, placed immediately
+      after it, and name the fixture cases to cover.
+
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
