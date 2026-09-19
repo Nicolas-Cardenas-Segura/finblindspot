@@ -1,7 +1,7 @@
 {
   "version": 1,
   "change": "init-blindspot-agent",
-  "baseRevision": "d4685c3d70f4d41d635779a09fcaa7d4f15e627c",
+  "baseRevision": "b391fef3f867abaab2e9a22388625918850b58d3",
   "budget": {
     "maxParallel": 8,
     "maxAttempts": 2,
@@ -684,8 +684,8 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -739,8 +739,8 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -1848,8 +1848,8 @@
       ],
       "risk": "high",
       "tier": "balanced",
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
       "reads": [
