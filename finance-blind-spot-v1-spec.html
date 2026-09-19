@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance Blind Spot, v1 build spec</title>
+<style>
+  :root { --ink:#16181d; --muted:#626a76; --line:#e3e6ec; --accent:#0f5b4f; --accent2:#a3421f; --wash:#f5f8f7; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+         color:var(--ink); line-height:1.55; background:#fff; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:900px; margin:0 auto; padding:52px 30px 90px; }
+  h1 { font-size:32px; line-height:1.15; margin:0 0 6px; letter-spacing:-0.025em; }
+  .sub { color:var(--muted); font-size:16.5px; margin:0 0 10px; }
+  .meta { color:var(--muted); font-size:13.5px; border-bottom:1px solid var(--line); padding-bottom:26px; margin-bottom:34px; }
+  h2 { font-size:22px; margin:46px 0 4px; letter-spacing:-0.015em; padding-top:10px; }
+  h2 .n { color:var(--accent); margin-right:10px; font-weight:700; }
+  h3 { font-size:16.5px; margin:28px 0 6px; }
+  h4 { font-size:14px; margin:20px 0 4px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  p,li { font-size:15px; }
+  .note { color:var(--muted); font-size:14px; margin:4px 0 14px; }
+  table { width:100%; border-collapse:collapse; margin:12px 0 10px; font-size:14px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background:var(--wash); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  td.id, code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.8px; }
+  td.id { color:var(--accent); white-space:nowrap; }
+  code { background:#eef1f1; padding:1px 5px; border-radius:3px; }
+  .box { background:var(--wash); border-left:3px solid var(--accent); padding:14px 18px; margin:18px 0; border-radius:0 6px 6px 0; }
+  .box.warn { background:#fdf6f2; border-left-color:var(--accent2); }
+  .box p:first-child{margin-top:0} .box p:last-child{margin-bottom:0}
+  .eq { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; background:#f2f5f4;
+        border:1px solid var(--line); padding:11px 13px; border-radius:5px; display:block; margin:8px 0 12px;
+        white-space:pre; overflow-x:auto; line-height:1.5; }
+  ul{padding-left:20px} li{margin:5px 0}
+  hr { border:0; border-top:1px solid var(--line); margin:44px 0; }
+  .screen { border:1px solid var(--line); border-radius:8px; padding:22px 26px; margin:16px 0; background:#fff;
+            box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  .screen .big { font-size:26px; font-weight:700; color:var(--accent); margin:0 0 4px; letter-spacing:-0.02em; }
+  .screen .big.neg { color:var(--accent2); }
+  .screen hr { margin:18px 0; }
+  .pill { display:inline-block; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+          background:var(--accent); color:#fff; padding:2px 9px; border-radius:10px; vertical-align:middle; }
+  .pill.grey { background:#8b929c; }
+  .two { display:flex; gap:26px; flex-wrap:wrap; }
+  .two > div { flex:1 1 300px; }
+  .pill.med { background:#8b6d2f; }
+  .pill.high { background:var(--accent2); }
+  .card { border:1px solid var(--line); border-radius:8px; padding:20px 24px 16px; margin:18px 0;
+          box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  .card h3 { font-size:17px; margin:0 0 2px; letter-spacing:-0.01em; }
+  .card h3 .num { color:var(--accent); font-weight:700; margin-right:8px; }
+  .trig { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; color:var(--muted); margin:4px 0 14px; }
+  .card dl { margin:0; }
+  .card dt { font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin:12px 0 2px; }
+  .card dd { margin:0; font-size:15px; }
+  .card dd.head { font-size:16px; font-weight:600; color:var(--accent); }
+  .card .warn-note { background:#fdf6f2; border-left:3px solid var(--accent2); padding:8px 12px; margin:12px 0 0; border-radius:0 5px 5px 0; font-size:13.5px; }
+  ol{padding-left:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Finance Blind Spot</h1>
+<p class="sub">One build spec: what the customer sees, where each answer goes, what the engine does with it, the words behind every blind spot, and how the whole thing repeats in six months.</p>
+<p class="meta">Version 1, frozen for the hackathon build. Content owner: Elena. Builders: Luca and Nicholas. This is the master build document. Nothing new goes in without agreeing it first, and anything thought of from here goes to v2.</p>
+
+<h2><span class="n">1</span>What the app is</h2>
+<p>A person answers around forty plain questions. The app gives them three things: an honest picture of where they stand, the gaps they had not noticed, and a saved position they can come back and update.</p>
+<p>The re-assessment is the product, not a later feature. A one-off calculator gets used once and forgotten. A saved position that someone returns to in six months, updates in five minutes and sees moving is a thing they keep. Everything below is designed around that loop.</p>
+
+<div class="box">
+<p><strong>The loop.</strong> Assess, see your blind spots, act on your own terms, come back in six or twelve months, answer a prefilled form, see what moved.</p>
+</div>
+
+<h4>Three separations that keep it safe and simple</h4>
+<ul>
+  <li><strong>The AI never does the maths.</strong> All numbers come from deterministic backend code. The AI asks follow-ups, explains results, and nothing else.</li>
+  <li><strong>The questionnaire is the customer's view; field IDs are the contract.</strong> Every question maps to one ID. The engine only ever reads IDs.</li>
+  <li><strong>"I don't know" is an answer, not a zero.</strong> It is stored as <code>null</code>, it never silently becomes 0, and on its own it produces a blind spot. Not knowing is the finding. The full input rule is in section 5.</li>
+</ul>
+
+<h4>What the AI may and may not do</h4>
+<div class="two">
+<div>
+<p class="note"><strong>May:</strong> ask follow-up questions, clarify an answer, point out missing information, explain a calculation or a concept, explain why something is a blind spot, suggest questions to ask a professional.</p>
+</div>
+<div>
+<p class="note"><strong>May not:</strong> recommend an investment, product or pension transfer, invent a missing value, present an assumption as a guarantee, or state that a projection will happen.</p>
+</div>
+</div>
+
+<hr>
+
+<h2><span class="n">2</span>Before they start</h2>
+<p class="note">One screen. One tick.</p>
+<div class="screen">
+<p style="font-weight:600;margin-top:0">Understand where you stand</p>
+<p style="font-size:14.5px">This builds a picture of your finances, shows what you might be overlooking, and estimates whether you are on track for the retirement you want. It is educational, and it is not financial advice. Your results depend on the information and assumptions you give.</p>
+<p style="font-size:14.5px;margin-bottom:0">Please do not enter bank logins, account numbers, card numbers, passport details or tax numbers. We do not need them.</p>
+</div>
+<table>
+<tr><th>What they see</th><th>Field</th><th>Answer</th></tr>
+<tr><td>I understand this is an educational assessment, not financial advice.</td><td class="id">consent</td><td>yes, required to continue</td></tr>
+</table>
+
+<hr>
+
+<h2><span class="n">3</span>The questionnaire</h2>
+<p class="note">Roughly forty fields. Every one either feeds a calculation or fires a blind-spot rule. Nothing is collected "for completeness". No names, no dates of birth, no health details, no account numbers.</p>
+
+<h3>A. About you</h3>
+<table>
+<tr><th style="width:44%">What they see</th><th style="width:20%">Field</th><th style="width:16%">Answer</th><th>Used for</th></tr>
+<tr><td>How old are you?</td><td class="id">age</td><td>18 to 80</td><td>Calculation</td></tr>
+<tr><td>Are you planning just for yourself, or as a household with a partner?</td><td class="id">has_partner</td><td>just_me / household</td><td>Rule 18</td></tr>
+<tr><td>Which country do you live in?</td><td class="id">residence_country</td><td>country</td><td>Rule 6</td></tr>
+<tr><td>Do you expect to keep living outside your home country long term?</td><td class="id">stay_abroad</td><td>yes / no / unsure / n/a</td><td>Context</td></tr>
+<tr><td>How many people depend on you financially?</td><td class="id">dependants</td><td>integer, 0 valid</td><td>Rules 3, 7</td></tr>
+<tr><td>Do you feel you have enough set aside for their education?<br><span class="note">shown only if dependants &gt; 0</span></td><td class="id">education_funded</td><td>yes / no / don't know</td><td>Rule 7</td></tr>
+<tr><td>Who mainly makes the financial decisions in your household?</td><td class="id">decision_maker</td><td>me / partner / joint</td><td>Rule 18</td></tr>
+<tr><td>Would your partner know where everything is held if they needed to?<br><span class="note">shown only if partner</span></td><td class="id">partner_knows</td><td>yes / no / don't know</td><td>Rule 18</td></tr>
+</table>
+
+<h3>B. Money in and out</h3>
+<p class="note">Household, monthly, after tax. Pension contributions are captured in section D, not here.</p>
+<table>
+<tr><th style="width:44%">What they see</th><th style="width:20%">Field</th><th style="width:16%">Answer</th><th>Used for</th></tr>
+<tr><td>Which currency shall we use?</td><td class="id">base_currency</td><td>EUR / GBP / USD</td><td>Everything</td></tr>
+<tr><td>Roughly how much take-home income does your household get each month?</td><td class="id">income_monthly</td><td>money</td><td>Rule 2</td></tr>
+<tr><td>Housing and utilities each month</td><td class="id">spend_housing</td><td>money</td><td>Derived</td></tr>
+<tr><td>Day to day: food, transport, leisure, holidays</td><td class="id">spend_living</td><td>money</td><td>Derived</td></tr>
+<tr><td>Loan and credit card repayments, excluding mortgage</td><td class="id">spend_debt</td><td>money</td><td>Derived</td></tr>
+<tr><td>Everything else: insurance, subscriptions, family support</td><td class="id">spend_other</td><td>money</td><td>Derived</td></tr>
+<tr><td>How much do you save or invest each month outside pensions?</td><td class="id">saving_monthly_other</td><td>money, 0 valid</td><td>Calculation</td></tr>
+</table>
+<span class="eq">monthly_spending = spend_housing + spend_living + spend_debt + spend_other
+monthly_surplus  = income_monthly - monthly_spending</span>
+
+<h3>C. What you own and owe</h3>
+<table>
+<tr><th style="width:44%">What they see</th><th style="width:20%">Field</th><th style="width:16%">Answer</th><th>Used for</th></tr>
+<tr><td>Cash in accounts, savings and deposits</td><td class="id">cash_total</td><td>money</td><td>Calc, rules 1, 15</td></tr>
+<tr><td>Is a lot of it in a currency you don't spend in?</td><td class="id">cash_currency_mismatch</td><td>yes / no / don't know</td><td>Rule 17</td></tr>
+<tr><td>Which countries hold your accounts and investments?</td><td class="id">money_countries</td><td>country list</td><td>Context</td></tr>
+<tr><td>Investments outside pensions: funds, shares, ETFs, savings plans</td><td class="id">investments_total</td><td>money</td><td>Calculation</td></tr>
+<tr><td>Do you know roughly what fees you pay on your investments and pensions?</td><td class="id">fees_known</td><td>yes / no / not sure</td><td>Rule 12</td></tr>
+<tr><td>Value of the home you live in</td><td class="id">home_value</td><td>money, 0 valid</td><td>Rule 16 only</td></tr>
+<tr><td>Mortgage still owed on it</td><td class="id">home_mortgage</td><td>money</td><td>Rule 16 only</td></tr>
+<tr><td>Value of any other property you own</td><td class="id">property_value</td><td>money, 0 valid</td><td>Calc, rule 16</td></tr>
+<tr><td>Mortgage owed on that</td><td class="id">property_mortgage</td><td>money</td><td>Calc, rule 16</td></tr>
+<tr><td>Do you expect that property equity to help fund your retirement?</td><td class="id">property_for_retirement</td><td>yes / no / don't know</td><td>Calculation</td></tr>
+<tr><td>Non-mortgage debt owed today: loans, cards, car finance</td><td class="id">debt_total</td><td>money, 0 valid</td><td>Rule 13</td></tr>
+<tr><td>Highest interest rate you pay on it</td><td class="id">debt_max_rate</td><td>% / don't know</td><td>Rule 13</td></tr>
+<tr><td>Will any significant debt still be owed when you retire? Roughly how much?</td><td class="id">debt_at_retirement</td><td>money / don't know</td><td>Calc, rule 14</td></tr>
+</table>
+<div class="box"><p><strong>Put this sentence on the screen:</strong> "The home you live in is not counted towards retirement, because you will still need somewhere to live." It is the question every user asks, and answering it before they ask builds trust in the rest of the number.</p></div>
+
+<h3>D. Pensions</h3>
+<p class="note">One row per pension, including any left behind in another country and the expected state pension. This section is repeated: <code>pensions[]</code>.</p>
+<table>
+<tr><th style="width:44%">What they see</th><th style="width:22%">Field</th><th style="width:16%">Answer</th><th>Used for</th></tr>
+<tr><td>Which country is this pension in?</td><td class="id">pension_country</td><td>country</td><td>Rule 10</td></tr>
+<tr><td>What type is it?</td><td class="id">pension_type</td><td>state / workplace DC / personal / defined benefit / annuity / other</td><td>Context</td></tr>
+<tr><td>If it has a pot value, roughly what is it worth today?</td><td class="id">pension_value</td><td>money / don't know / n/a</td><td>Calc, rule 8</td></tr>
+<tr><td>If it pays a guaranteed income, roughly how much a month in today's money?</td><td class="id">pension_fixed_income_monthly</td><td>money / don't know / n/a</td><td>Calculation</td></tr>
+<tr><td>At what age does it start paying?</td><td class="id">pension_start_age</td><td>number / don't know</td><td>Calc, rule 9</td></tr>
+<tr><td>How much goes in each month, including your employer's share?</td><td class="id">pension_contribution_monthly</td><td>money, 0 valid</td><td>Calculation</td></tr>
+<tr><td>Will those contributions continue until you retire?</td><td class="id">pension_contributions_continue</td><td>yes / no / don't know</td><td>Calculation</td></tr>
+</table>
+<p class="note">One question for the whole section:</p>
+<table>
+<tr><td style="width:44%">Have you named who inherits your pensions and life cover?</td><td class="id" style="width:22%">beneficiaries_named</td><td style="width:16%">yes / no / don't know</td><td>Rule 11</td></tr>
+</table>
+<div class="box"><p><strong>Why the start age is not optional.</strong> Retire at 60 with a state pension that starts at 67 and, without this field, the app credits seven years of income that will not arrive. It is the difference between a projection and a guess.</p>
+<p>When a pension starts after the chosen retirement age, v1 excludes it entirely and fires rule 9. That is deliberately conservative, so the result must be presented as the position <em>at that retirement age</em>, never as a lifetime shortfall. Wording in section 8.</p></div>
+
+<h3>E. Protection and succession</h3>
+<p class="note">These feed the blind-spot engine only. No policy schedules, no sums assured beyond one optional figure.</p>
+<table>
+<tr><th style="width:44%">What they see</th><th style="width:20%">Field</th><th style="width:16%">Answer</th><th>Used for</th></tr>
+<tr><td>Do you have life insurance? If yes, roughly how much cover?</td><td class="id">life_cover<br>life_cover_amount</td><td>yes / no / don't know</td><td>Rule 3</td></tr>
+<tr><td>Do you have critical illness or income protection cover?</td><td class="id">illness_cover</td><td>yes / no / don't know</td><td>Rule 4</td></tr>
+<tr><td>Do you have health cover where you live, private or public?</td><td class="id">health_cover</td><td>yes / no / don't know</td><td>Rule 5</td></tr>
+<tr><td>Do you have a will?</td><td class="id">will</td><td>yes / no</td><td>Rule 6</td></tr>
+<tr><td>Which country's law is it under?</td><td class="id">will_country</td><td>country</td><td>Rule 6</td></tr>
+<tr><td>When was it last reviewed?</td><td class="id">will_year</td><td>year / don't know</td><td>Rule 6</td></tr>
+</table>
+
+<h3>F. Your retirement goal</h3>
+<table>
+<tr><th style="width:44%">What they see</th><th style="width:20%">Field</th><th style="width:16%">Answer</th><th>Used for</th></tr>
+<tr><td>At what age would you like to retire?</td><td class="id">retire_age</td><td>number, &gt; age</td><td>Calculation</td></tr>
+<tr><td>Where do you expect to live then?</td><td class="id">retire_country</td><td>country / don't know</td><td>Context</td></tr>
+<tr><td><strong>In today's money</strong>, how much take-home income would you want each month in retirement?</td><td class="id">retire_income_monthly</td><td>money, required</td><td>Calculation</td></tr>
+</table>
+<p class="note">Helper text under the last one: "Think about the lifestyle you want at today's prices. We adjust for inflation for you." Without that line people either answer in future money or freeze.</p>
+
+<h3>G. Assumptions</h3>
+<p class="note">Pre-filled, editable, and always shown again on the results screen.</p>
+<table>
+<tr><th>What they see</th><th>Field</th><th>Default</th><th>Range</th></tr>
+<tr><td>Inflation</td><td class="id">inflation_rate</td><td>3%</td><td>2% to 5%</td></tr>
+<tr><td>Growth on investments and pensions</td><td class="id">investment_growth_rate</td><td>5%</td><td>3% to 7%</td></tr>
+<tr><td>Growth on cash</td><td class="id">cash_growth_rate</td><td>2%</td><td>0.1% to 4%</td></tr>
+<tr><td>Growth on property</td><td class="id">property_growth_rate</td><td>3%</td><td>0.1% to 5%</td></tr>
+<tr><td>Income your pot is assumed to provide each year</td><td class="id">withdrawal_rate</td><td>4%</td><td>3% cautious, 4% moderate, 5% higher</td></tr>
+</table>
+<p class="note">Label the last one as a planning assumption, never a "safe" rate. Show the result at 3, 4 and 5 per cent so nobody mistakes one number for a fact.</p>
+
+<h3>H. What would you like to understand better?</h3>
+<p class="note">Multi-select, <code>learning_priorities[]</code>. Used to rank which blind spots get explained first, and to seed the learning layer later.</p>
+<p class="note">Protecting my family · Wills and inheritance · Education costs · Short-term savings · Retirement · Investments · Pensions · Cross-border finances · Property · Debt · Fees</p>
+
+<hr>
+
+<h2><span class="n">4</span>How an assessment is stored</h2>
+<p>This is the part that makes the six-month re-run work, so it belongs in v1 even though nothing on screen shows it.</p>
+<span class="eq">assessment {
+  id
+  user_id
+  created_at
+  status            draft | complete
+  base_currency
+  answers { ...every field ID above }
+  assumptions { inflation_rate, investment_growth_rate, cash_growth_rate,
+                property_growth_rate, withdrawal_rate }
+  derived   { monthly_spending, monthly_surplus, net_worth, financial_assets }
+  results   { required_pot, projected_assets, position, position_today,
+              extra_monthly, is_minimum_estimate, missing_fields[] }
+  blind_spots [ { rule_id, severity, fired_at } ]
+}</span>
+<p>Rules that follow from this shape:</p>
+<ul>
+  <li>An assessment is <strong>immutable once complete</strong>. A re-assessment creates a new record. Never overwrite, or the history the user came back for disappears.</li>
+  <li>Answers, assumptions and results are stored separately, so you can recompute an old assessment under today's assumptions.</li>
+  <li>Store which fields were <code>null</code>. "You didn't know your pension value last time, do you now?" is the single best prompt the app has.</li>
+</ul>
+
+<hr>
+
+<h2><span class="n">5</span>The calculation engine</h2>
+<p class="note">Deterministic backend code. The user never sees a formula, only the output. Lump sums compound annually; monthly contributions compound monthly at <code>investment_growth_rate / 12</code>.</p>
+
+<span class="eq">1  years  = retire_age - age                    # must be >= 1
+   months = years * 12
+   mr     = investment_growth_rate / 12
+
+2  target_income_today = retire_income_monthly * 12
+
+3  guaranteed_income_today = 12 * sum(pension_fixed_income_monthly
+                                      where pension_start_age &lt;= retire_age
+                                      and the value is known)
+
+4  income_needed_today = max(target_income_today - guaranteed_income_today, 0)
+
+5  future_income_needed = income_needed_today * (1 + inflation_rate) ^ years
+
+6  required_pot = future_income_needed / withdrawal_rate
+
+7  projected_assets =
+       sum(pension_value) * (1 + investment_growth_rate) ^ years
+     + investments_total  * (1 + investment_growth_rate) ^ years
+     + max(cash_total - 3 * monthly_spending, 0) * (1 + cash_growth_rate) ^ years
+     + property_equity_if_earmarked * (1 + property_growth_rate) ^ years
+     + sum(pension_contribution_monthly where contributions continue)
+           * (((1 + mr) ^ months - 1) / mr)
+     + saving_monthly_other
+           * (((1 + mr) ^ months - 1) / mr)
+     - debt_at_retirement
+
+8  position       = projected_assets - required_pot
+9  position_today = position / (1 + inflation_rate) ^ years
+
+10 if position &lt; 0:
+       extra_monthly = -position * mr / ((1 + mr) ^ months - 1)
+
+11 repeat steps 6, 8 and 9 at withdrawal_rate 3% and 5%</span>
+
+<h4>Three things in there that are easy to get wrong</h4>
+<ul>
+  <li><strong>Only cash above three months of spending is projected.</strong> An emergency fund is not a retirement asset, and counting it teaches the wrong lesson.</li>
+  <li><strong>The two contribution lines are usually worth more than the starting balances.</strong> Someone saving €500 a month for 25 years builds around €298,000 at 5%. Omitting them turns almost every result into a false shortfall.</li>
+  <li><strong>Property counts only when <code>property_for_retirement = yes</code>,</strong> and the home they live in never counts.</li>
+</ul>
+
+<h4>Zero, unknown and blank</h4>
+<p class="note">Three different things. Never collapse them.</p>
+<table>
+<tr><th style="width:34%">The user does this</th><th style="width:14%">Stored as</th><th>Engine behaviour</th></tr>
+<tr><td>Answers "none", or enters 0</td><td class="id">0</td><td>A real value. Used in the maths, and can satisfy or fire a rule on its own terms.</td></tr>
+<tr><td>Picks "I don't know" or "not sure"</td><td class="id">null</td><td>Left out of the calculation, added to <code>missing_fields</code>, marks the result a minimum estimate, and fires the matching blind spot.</td></tr>
+<tr><td>Leaves a required field blank</td><td class="id">not stored</td><td>Prompt them to answer, or to pick "I don't know" if they genuinely cannot. Do not submit and do not default it.</td></tr>
+</table>
+<p>Never silently convert <code>null</code> to <code>0</code>, in the engine or in the form. Every money and yes/no field must offer an explicit "I don't know", otherwise the user is forced to invent a zero and the blind spot is lost.</p>
+
+<h4>Missing information</h4>
+<p>If any field used above is <code>null</code>, leave it out, set <code>is_minimum_estimate = true</code>, list the missing fields, and fire the matching blind spot. Label the result on screen: <em>"Minimum estimate based on what you know today. Missing: your UK pension value."</em> Never substitute a guess, and never fail silently.</p>
+<p>If <code>retire_income_monthly</code> is unknown, do not calculate at all. Show the blind spots instead, which are still useful on their own.</p>
+
+<h4>Validation</h4>
+<ul>
+  <li><code>retire_age &gt; age</code>. If they are already there, switch to "what could my savings support now" rather than running a negative timeline.</li>
+  <li>Growth rates must be above zero. They are denominators, and a 0% rate divides by zero.</li>
+  <li>Money fields zero or positive.</li>
+  <li><code>pension_start_age</code> between <code>age</code> and 90.</li>
+  <li>If guaranteed income already covers the target, show the no-gap message, not a negative pot.</li>
+  <li>Round everything displayed to the nearest hundred. False precision undermines an estimate.</li>
+</ul>
+
+<h4>Stated on screen as v1 simplifications</h4>
+<p class="note">Tax is ignored. Rental income is ignored. Contributions are assumed flat. Fixed pension income is inflated at the same rate as everything else. One planning horizon, with no modelling of how long the money must last.</p>
+
+<hr>
+
+<h2><span class="n">6</span>Blind-spot engine</h2>
+<p class="note">Deterministic rules, checked after every assessment. Severity is fixed per rule, then bumped by one if the rule matches a topic ticked in section H. The action plan takes the top three.</p>
+<table>
+<tr><th style="width:4%">#</th><th style="width:26%">Blind spot</th><th style="width:46%">Fires when</th><th style="width:10%">Severity</th></tr>
+<tr><td>1</td><td>Thin emergency fund</td><td><code>cash_total &lt; 3 × monthly_spending</code></td><td>High</td></tr>
+<tr><td>2</td><td>Spending more than earning</td><td><code>monthly_surplus &lt; 0</code></td><td>High</td></tr>
+<tr><td>3</td><td>Family unprotected</td><td><code>dependants &gt; 0</code> and <code>life_cover ≠ yes</code></td><td>High</td></tr>
+<tr><td>4</td><td>No income safety net</td><td><code>illness_cover ≠ yes</code></td><td>Medium</td></tr>
+<tr><td>5</td><td>No health cover</td><td><code>health_cover ≠ yes</code></td><td>High</td></tr>
+<tr><td>6</td><td>Succession gap</td><td><code>will = no</code>, or <code>will_country ≠ residence_country</code>, or <code>will_year</code> more than 5 years old</td><td>Medium</td></tr>
+<tr><td>7</td><td>Education unfunded</td><td><code>dependants &gt; 0</code> and <code>education_funded ≠ yes</code></td><td>Medium</td></tr>
+<tr><td>8</td><td>Pension visibility</td><td>no pension rows at all, or any <code>pension_value = null</code></td><td>High</td></tr>
+<tr><td>9</td><td>Pension timing gap</td><td><code>pension_start_age &gt; retire_age</code></td><td>High</td></tr>
+<tr><td>10</td><td>Scattered pensions</td><td>more than one <code>pension_country</code></td><td>Medium</td></tr>
+<tr><td>11</td><td>Beneficiary gap</td><td><code>beneficiaries_named ≠ yes</code></td><td>Medium</td></tr>
+<tr><td>12</td><td>Fees unknown</td><td><code>fees_known ≠ yes</code></td><td>Medium</td></tr>
+<tr><td>13</td><td>Expensive or unknown debt</td><td><code>debt_max_rate &gt; 8%</code> or <code>null</code>, with <code>debt_total &gt; 0</code></td><td>High</td></tr>
+<tr><td>14</td><td>Debt into retirement</td><td><code>debt_at_retirement &gt; 0</code> or <code>null</code></td><td>Medium</td></tr>
+<tr><td>15</td><td>Cash concentration</td><td><code>cash_total ÷ financial_assets &gt; 30%</code></td><td>Low</td></tr>
+<tr><td>16</td><td>Property concentration</td><td>net property ÷ total net assets <code>&gt; 60%</code></td><td>Low</td></tr>
+<tr><td>17</td><td>Currency exposure</td><td><code>cash_currency_mismatch = yes</code>, or the currency of <code>retire_country</code> ≠ <code>base_currency</code></td><td>Medium</td></tr>
+<tr><td>18</td><td>Single point of failure</td><td>partner exists, <code>decision_maker = me</code>, <code>partner_knows ≠ yes</code></td><td>Medium</td></tr>
+<tr><td>19</td><td>Retirement gap</td><td><code>position &lt; 0</code> at 4%, or <code>is_minimum_estimate = true</code></td><td>High</td></tr>
+<tr><td>20</td><td>Lifestyle reality check</td><td><code>retire_income_monthly &lt; 60% of monthly_spending</code></td><td>Low</td></tr>
+</table>
+
+<h4>Tone rules for the copy</h4>
+<ul>
+  <li>Observation, not verdict. "A large share of what you reported is in cash", not "you are making a mistake".</li>
+  <li>For cross-border wills: "your succession arrangements may be worth reviewing", never "your will is invalid".</li>
+  <li>Rule 20 asks a question rather than flagging an error. Wanting less in retirement is often deliberate.</li>
+  <li>Rule 17 needs a country-to-currency lookup table. Small, but somebody has to build it or the rule never fires.</li>
+</ul>
+<p class="note">The copy for all twenty, title, explanation, what to learn and the question to ask, is in section 7.</p>
+
+<hr>
+
+<h2><span class="n">7</span>Blind-spot content library</h2>
+<p class="note">The words behind the twenty rules. One entry per rule: what the user sees, why it matters, what to go and learn, and the question to take to a professional.</p>
+
+<h4>How the builders use this</h4>
+<p>This is data, not code. Load it as a static file keyed by rule ID, so the copy can be corrected without a deploy and translated later without touching the engine.</p>
+<span class="eq">blind_spot_content = {
+  "thin_emergency_fund": {
+    "title":     "Your safety net is thin",
+    "headline":  "...",          # one line, shown in the list
+    "why":       "...",          # 2 to 3 sentences, why it matters
+    "learn":     ["...", "..."], # 2 to 3 concrete things to go and do or read
+    "ask":       "...",          # one question to take to a professional
+    "severity":  "high",
+    "topic":     "savings"       # matches a section H tick, for the severity bump
+  },
+  ...
+}</span>
+<p>The engine fires rule IDs. The AI layer may rephrase <code>why</code> around the user's own numbers, for example inserting their actual months of cover. It must not invent a new <code>ask</code>, change the <code>learn</code> items into product suggestions, or add a rule that did not fire.</p>
+
+<div class="box warn"><p><strong>The advice boundary is in the wording, and this file is where it is most easily broken.</strong> Every <code>learn</code> item describes something to find out, understand or check. None of them names a product, a provider or a transaction. Every <code>ask</code> is a question the user puts to a qualified person, which is the opposite of the app answering it.</p></div>
+
+<h4>Tone, applied to every entry below</h4>
+<ul>
+  <li>Observation, not verdict. State what was reported and what it implies, not what they did wrong.</li>
+  <li>Second person, present tense, short sentences. No jargon that is not immediately explained.</li>
+  <li>"You told us" or "based on what you entered" whenever the finding rests on their own answer.</li>
+  <li>An unknown is a finding in its own right, and the copy says so plainly rather than treating it as a failure.</li>
+  <li>Never imply urgency to buy anything. The action is always to find out, understand or ask.</li>
+</ul>
+
+<h3>The twenty entries</h3>
+<p class="note">Numbers match the rules table in the spec. Severity is the base value before the section H bump.</p>
+
+<div class="card">
+<h3><span class="num">1</span>Your safety net is thin <span class="pill high">High</span></h3>
+<p class="trig">thin_emergency_fund &middot; cash_total &lt; 3 &times; monthly_spending &middot; topic: savings</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You have less than three months of spending in cash.</dd>
+<dt>Why it matters</dt>
+<dd>Emergency money is what stops a bad month turning into a bad decade. Without it, a job loss, a medical bill or a broken boiler gets paid for with a credit card at 20%, or by selling investments at whatever price the market happens to offer that week. Everything else in your plan sits on top of this, which is why it is first.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Work out your real monthly essentials, not your total spending. Rent, food, utilities, insurance, minimum debt payments. That figure, times three to six, is the target.</li>
+<li>Understand where cash can sit so it keeps some value against inflation but can still be reached within days.</li>
+<li>Find out what your bank deposit protection scheme covers in the country where the money is held, and per what.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"Given my job security and my dependants, how many months of essential spending should I hold in cash before I put money anywhere else?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">2</span>You are spending more than you earn <span class="pill high">High</span></h3>
+<p class="trig">negative_surplus &middot; monthly_surplus &lt; 0 &middot; topic: savings</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">What you told us you spend is more than what you told us you earn.</dd>
+<dt>Why it matters</dt>
+<dd>A negative monthly gap is filled from somewhere, usually savings or borrowing, and both work in the wrong direction. No investment return fixes a structural deficit, because the gap compounds faster than the portfolio. It is also the one number on this whole assessment you can change this month rather than this decade.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Check the figures first. Mixing an annual bonus into a monthly income line, or the reverse, is the most common cause of this showing up wrongly.</li>
+<li>Separate fixed commitments from discretionary spending, so you know how much is genuinely movable.</li>
+<li>Understand which of your costs are contracted for a period and when each one next comes up for renewal.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"My outgoings exceed my income. Which commitments should I look at first, and what would you want to see before I take on anything new?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">3</span>People depend on you and there is no cover <span class="pill high">High</span></h3>
+<p class="trig">family_unprotected &middot; dependants &gt; 0 and life_cover &ne; yes &middot; topic: protection</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You have people who depend on your income, and no life cover recorded.</dd>
+<dt>Why it matters</dt>
+<dd>Everything else in this assessment assumes you keep earning. Life cover is the only part that works if you do not. For anyone with dependants and a mortgage it is usually the cheapest large risk to deal with, and the one most often left until later. If you answered "I don't know", that is worth resolving on its own: cover you cannot find is cover your family cannot claim.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Check what you already have through your employer, and whether it survives you leaving that job. Most does not.</li>
+<li>Understand the difference between cover that runs for a fixed term and cover that lasts for life, and what each is normally used for.</li>
+<li>Work out roughly what your household would need: outstanding mortgage, plus the years of income that would need replacing.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"If I died tomorrow, what would my household actually receive, and what is the gap between that and what they would need?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">4</span>No cover if you cannot work <span class="pill med">Medium</span></h3>
+<p class="trig">no_income_safety_net &middot; illness_cover &ne; yes &middot; topic: protection</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">Nothing recorded that would replace your income if illness stopped you working.</dd>
+<dt>Why it matters</dt>
+<dd>Long-term illness is statistically more likely during your working life than death, and financially it can be harder, because the costs continue while the income stops. State support varies enormously by country and is often far below what people assume. Self-employed and cross-border workers tend to have the least of it.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Find out what your employer pays if you are signed off sick, at what percentage of salary, and for how many months.</li>
+<li>Find out what the state in your country of residence pays, and what contribution record it requires.</li>
+<li>Understand the difference between cover that pays a lump sum on a listed diagnosis and cover that pays a monthly income for as long as you cannot work.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"If I could not work for two years, what would I receive from my employer and from the state, and for how long?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">5</span>No health cover recorded <span class="pill high">High</span></h3>
+<p class="trig">no_health_cover &middot; health_cover &ne; yes &middot; topic: protection</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">No health cover recorded where you live.</dd>
+<dt>Why it matters</dt>
+<dd>This one depends entirely on where you are, which is why the app asks rather than assumes. In some countries residence gives you comprehensive care and this is a non-issue. In others, or on certain visa types, a single serious episode is the largest bill a household will ever face. If you are living outside the country you pay into, check rather than assume.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Confirm what your residence status entitles you to in the public system where you actually live, not where you are from.</li>
+<li>If you have private cover, check what is excluded, what the annual limit is, and whether it covers treatment outside that country.</li>
+<li>Check whether your cover follows you or ends when you change job or move.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"On my residence status, what am I entitled to in the public system here, and what would I have to pay for myself?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">6</span>Your succession arrangements may be worth reviewing <span class="pill med">Medium</span></h3>
+<p class="trig">succession_gap &middot; will = no, or will_country &ne; residence_country, or will_year &gt; 5 years old &middot; topic: succession</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">Your will, or the lack of one, may not match where you now live.</dd>
+<dt>Why it matters</dt>
+<dd>Inheritance is governed by national law, and those laws differ sharply. Several countries apply forced heirship, where a fixed share must go to certain relatives regardless of what a will says. A will written in one country may still be valid but produce an outcome you did not intend in another. Without a will, the local default rules decide, and they rarely match how modern households are actually arranged.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Find out which country's succession law applies to you, and whether you have any right to elect a different one.</li>
+<li>Understand that assets in multiple countries can be subject to multiple regimes, and that one will does not always cover all of them.</li>
+<li>Check whether anything major has changed since the will was written: a move, a marriage, a separation, a child, a property.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"Which country's succession rules apply to my estate, and does my current will actually achieve what I intend under those rules?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">7</span>Education costs are not funded <span class="pill med">Medium</span></h3>
+<p class="trig">education_unfunded &middot; dependants &gt; 0 and education_funded &ne; yes &middot; topic: education</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You have dependants and no confirmed plan for education costs.</dd>
+<dt>Why it matters</dt>
+<dd>Education is the one large expense with a date attached, which makes it both easier to plan for and harder to postpone. It also tends to land in the same years as peak retirement saving, so unfunded, it quietly takes the money that was meant for later. Education costs have historically risen faster than general inflation, so a figure that looks adequate today usually is not.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Get a realistic number for the route you actually expect: local state, private, or university in another country, including living costs.</li>
+<li>Work out the years remaining. Under five years is a very different problem from fifteen, and is generally treated differently.</li>
+<li>Understand what fees look like for international or non-resident students, which are often several times the domestic rate.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"Given the education route we expect and the years we have left, how much would we need to set aside each month, and how should that money be held?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">8</span>You cannot see all your pensions <span class="pill high">High</span></h3>
+<p class="trig">pension_visibility &middot; no pension rows, or any pension_value = null &middot; topic: retirement</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">At least one pension has no value recorded, so your projection is a minimum.</dd>
+<dt>Why it matters</dt>
+<dd>For most people pensions are the largest single asset they own, and often the one they can describe the least. A pot you cannot value cannot be counted, so the projection above is lower than your real position, and you are planning against a number you know is incomplete. People who have moved countries or changed employers often have money sitting in schemes that have lost track of them entirely.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>List every employer you have had and check whether each one enrolled you in a scheme. A payslip from the time will usually show it.</li>
+<li>Find out whether the country you worked in runs a pension tracing or dormant-accounts service, and use it.</li>
+<li>For each pot, get three things: the current value, what it is invested in, and the age it can first be taken.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"Help me build a complete list of my pensions across every country I have worked in, and tell me what each one is currently worth."</dd>
+</dl>
+<div class="warn-note"><strong>Boundary.</strong> This entry helps someone find and value their pensions. It never suggests moving, consolidating or transferring one. Transfer advice is regulated in most jurisdictions and stays off this app entirely.</div>
+</div>
+
+<div class="card">
+<h3><span class="num">9</span>Your pension starts after you plan to stop <span class="pill high">High</span></h3>
+<p class="trig">pension_timing_gap &middot; pension_start_age &gt; retire_age &middot; topic: retirement</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You plan to retire at {retire_age}, and one of your pensions does not begin until {pension_start_age}.</dd>
+<dt>Why it matters</dt>
+<dd>Those in-between years have to be paid for from your own savings, with no pension arriving. It is the single most underestimated part of early retirement, and the reason people who retire a few years early run into trouble later rather than immediately. Because this projection stops at your chosen retirement age, the income arriving later is not counted at all, which makes the figure above deliberately conservative. It is your position at {retire_age}, not your position for the rest of your life.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Confirm the exact age each pension can first be drawn. State pension ages have been rising in many countries and may not be what you remember.</li>
+<li>Work out the cost of the bridge: the years between stopping and the pension starting, times your expected annual spending.</li>
+<li>Understand whether taking a pension earlier than its normal age is possible where you are, and what permanent reduction applies if it is.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"I want to stop at {retire_age} and my pensions start later. How would I fund those years, and what would it cost me to take anything early?"</dd>
+</dl>
+<div class="warn-note"><strong>Required copy.</strong> Whenever this rule fires, the headline result must be bounded by the retirement age and carry the conservative-estimate note. See section 8.</div>
+</div>
+
+<div class="card">
+<h3><span class="num">10</span>Your pensions are spread across countries <span class="pill med">Medium</span></h3>
+<p class="trig">scattered_pensions &middot; more than one pension_country &middot; topic: cross_border</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You have pensions in more than one country.</dd>
+<dt>Why it matters</dt>
+<dd>This is not a problem in itself, it is an admin and visibility risk. Each scheme has its own rules, its own claim process, its own start age and its own currency, and none of them will contact each other on your behalf. Pots go missing when people move, and schemes rarely chase a member across a border. The currency point matters too: a pension paid in one currency while you spend in another leaves your retirement income moving with the exchange rate.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Keep one list: scheme, country, reference number, current value, start age, and how it is claimed.</li>
+<li>Check what each scheme needs from you to pay out, and whether it can pay to an account in another country.</li>
+<li>Find out whether there is a social security agreement between the countries involved, and whether contributions in one count towards entitlement in another.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"I have pensions in several countries. What do I need to do in each one, and where will I be taxed on them when they pay out?"</dd>
+</dl>
+<div class="warn-note"><strong>Boundary.</strong> "Keep track of them" is the message. Not "bring them together".</div>
+</div>
+
+<div class="card">
+<h3><span class="num">11</span>Nobody is named to inherit <span class="pill med">Medium</span></h3>
+<p class="trig">beneficiary_gap &middot; beneficiaries_named &ne; yes &middot; topic: succession</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">No beneficiaries recorded on your pensions and life cover.</dd>
+<dt>Why it matters</dt>
+<dd>Pensions and life policies often pass outside the will, under the scheme's own rules. That means an out-of-date nomination, or none at all, can send money somewhere you did not intend, and a will cannot always override it. It is one of the few gaps that costs nothing to close and can take ten minutes. A nomination made before a separation, or before a child, is the usual problem.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Check each pension and each policy separately. They are nominated individually, not as a group.</li>
+<li>Understand whether your scheme treats a nomination as binding or as an expression of wishes, because the difference matters.</li>
+<li>Set a habit of reviewing nominations whenever your household changes.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"Who is currently nominated on each of my pensions and policies, and does that match what my will says?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">12</span>You do not know what you are paying in fees <span class="pill med">Medium</span></h3>
+<p class="trig">fees_unknown &middot; fees_known &ne; yes &middot; topic: investments</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You told us you are not sure what your investments and pensions cost you each year.</dd>
+<dt>Why it matters</dt>
+<dd>Fees are the only part of investment returns that is known in advance, and they compound in exactly the same way as growth, just against you. On a pot growing at 5% over 25 years, the difference between paying 0.5% a year and 2% a year is roughly a third of the final value. Charges are usually taken from inside the fund, so they never appear as a payment you notice.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Look for the total yearly cost, which usually means adding the platform or scheme charge to the fund charge, and any adviser fee.</li>
+<li>Understand the difference between a one-off charge on money going in and an annual charge on the whole balance. The annual one is what compounds.</li>
+<li>Try the same projection at your current cost and at one percentage point lower, so the effect is a number and not a principle.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"What is the total annual cost of each of my investments and pensions, all charges included, as a percentage and in euros?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">13</span>Expensive or unmeasured debt <span class="pill high">High</span></h3>
+<p class="trig">expensive_debt &middot; debt_max_rate &gt; 8% or null, with debt_total &gt; 0 &middot; topic: debt</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You have debt costing more than a portfolio is likely to earn, or a rate you are not sure of.</dd>
+<dt>Why it matters</dt>
+<dd>This projection assumes investments grow at 5% a year and that is not guaranteed. Interest on a card at 20% is guaranteed. Money used to clear it returns that rate, with certainty and no market risk, which is a better deal than almost anything else available. If you answered "I don't know" for the rate, that is worth resolving first, because the rate determines whether this is urgent or routine.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>List every debt with its rate, so you can see them ranked rather than as one lump.</li>
+<li>Understand which rates are fixed and which can be changed by the lender with notice.</li>
+<li>Check for early repayment penalties before clearing anything, particularly on fixed-term loans.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"Given these rates, should I be repaying debt before investing more, and in what order?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">14</span>Debt is still running in retirement <span class="pill med">Medium</span></h3>
+<p class="trig">debt_into_retirement &middot; debt_at_retirement &gt; 0 or null &middot; topic: debt</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You expect to still owe money when you stop working.</dd>
+<dt>Why it matters</dt>
+<dd>Repayments do not stop when the salary does. Debt carried into retirement has to be serviced from the same pot that funds your living costs, so it reduces your income twice over: once through the repayments, and again through the capital you had to keep back. It can also limit your choices, because it is harder to borrow or refinance without employment income.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Check the final payment date on each loan and mortgage, and compare it to your intended retirement age.</li>
+<li>Work out what clearing the balance before you stop would require each month, and whether that is realistic.</li>
+<li>Understand what happens to any interest-only balance at the end of its term.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"I expect to still owe this at retirement. Should I be clearing it first, and what does it do to the income I can take?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">15</span>A large share of your money is in cash <span class="pill low">Low</span></h3>
+<p class="trig">cash_concentration &middot; cash_total &divide; financial_assets &gt; 30% &middot; topic: investments</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">More than a third of what you reported is sitting in cash.</dd>
+<dt>Why it matters</dt>
+<dd>Cash cannot fall in nominal terms, which is exactly why it feels safe, and it loses value quietly against inflation instead. At 3% inflation, money in an account paying 1% loses around a fifth of its purchasing power over ten years without the balance ever going down. Beyond your emergency fund and anything needed within a few years, holding it in cash is a decision with a cost, even though it does not look like one.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Split the cash by purpose: emergency fund, money needed within three years, and the rest. Only the last part is really in question.</li>
+<li>Compare the rate you are actually receiving with current inflation, rather than with zero.</li>
+<li>Understand why money needed soon is normally kept in cash regardless of the inflation cost. Timing, not return, is the reason.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"How much cash should I hold given my circumstances, and what should the rest be doing?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">16</span>Most of your wealth is in property <span class="pill low">Low</span></h3>
+<p class="trig">property_concentration &middot; net property &divide; total net assets &gt; 60% &middot; topic: property</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">Most of your net worth is tied up in property.</dd>
+<dt>Why it matters</dt>
+<dd>Property has served a lot of people well, and this is an observation about concentration rather than a criticism of the asset. Three things follow from it: you cannot sell a small part of a house when you need money, the value moves with one local market rather than many, and it costs money to hold through maintenance, tax and periods with no tenant. If the plan is to fund retirement by selling, the sale has to happen at a time that is not of your choosing.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Work out your net position after mortgage, selling costs and any tax on gain, rather than the headline value.</li>
+<li>Be honest about which properties you would actually sell, and which you would not.</li>
+<li>Understand what property costs you annually to hold, as a percentage of its value.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"If most of my wealth is in property, what would I actually live on, and how quickly could I access it if I needed to?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">17</span>Your money and your life are in different currencies <span class="pill med">Medium</span></h3>
+<p class="trig">currency_exposure &middot; cash_currency_mismatch = yes, or currency of retire_country &ne; base_currency &middot; topic: cross_border</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You hold money in one currency and expect to spend it in another.</dd>
+<dt>Why it matters</dt>
+<dd>Exchange rates move by 10% to 20% over a few years without anything unusual happening. If your savings are in one currency and your retirement will be spent in another, your real income moves with the rate, and you have no control over it. It is a risk that pays you nothing for taking it, which makes it different from investment risk. It is also the risk people who move countries notice last.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>List your assets by the currency they are actually held in, not the currency of the platform you see them on.</li>
+<li>Do the same for the income you expect in retirement, then compare both to the currency you will spend in.</li>
+<li>Understand the difference between an occasional conversion cost and a permanent structural mismatch. The second is the one that matters.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"My assets are in one currency and I expect to retire in another. How exposed am I, and what are the normal ways of reducing that?"</dd>
+</dl>
+<div class="warn-note"><strong>Build note.</strong> This rule needs the country-to-currency lookup table from section 6, or it never fires.</div>
+</div>
+
+<div class="card">
+<h3><span class="num">18</span>Only one of you knows where everything is <span class="pill med">Medium</span></h3>
+<p class="trig">single_point_of_failure &middot; partner exists, decision_maker = me, partner_knows &ne; yes &middot; topic: succession</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">You handle the money, and your partner does not know where it all is.</dd>
+<dt>Why it matters</dt>
+<dd>This is the most common gap in the whole assessment and the cheapest to close. If something happens to you, your partner deals with the worst weeks of their life while trying to find accounts they have never seen, with institutions that will not talk to them without paperwork they do not know exists. It is not about who makes the decisions. It is about whether the information survives one person being unavailable.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Write one page: every institution, what is held there, and roughly how to reach it. Not passwords, just the map.</li>
+<li>Make sure at least one other person knows that page exists and where to find it.</li>
+<li>Understand what your bank or scheme requires from a partner in that situation, because it is usually more than people expect.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"If I were not here, what would my partner need in order to access and manage all of this, and what should we put in place now?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">19</span>There is a gap between the plan and the target <span class="pill high">High</span></h3>
+<p class="trig">retirement_gap &middot; position &lt; 0 at 4%, or is_minimum_estimate = true &middot; topic: retirement</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">On today's assumptions, your projection falls short of the income you asked for.</dd>
+<dt>Why it matters</dt>
+<dd>A gap found now is a small monthly number. The same gap found ten years later is a large one, because the time left to fix it is what does most of the work. There are four levers and only four: save more, retire later, want less, or take different investment risk. Seeing which one moves the number most is more useful than the shortfall itself. If your result is marked a minimum estimate, the gap may be smaller than shown, and filling in what is missing is the first step rather than saving more.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Try each lever one at a time in the assumptions panel and watch which one shifts the result most.</li>
+<li>Understand what the withdrawal rate assumption means and why 3%, 4% and 5% produce such different answers.</li>
+<li>Check whether the shortfall is real or an artefact of missing information, before changing any behaviour.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"Are the assumptions behind this projection reasonable for my situation, and which change would close the gap most efficiently?"</dd>
+</dl>
+</div>
+
+<div class="card">
+<h3><span class="num">20</span>Is the lower retirement income deliberate? <span class="pill low">Low</span></h3>
+<p class="trig">lifestyle_reality_check &middot; retire_income_monthly &lt; 60% of monthly_spending &middot; topic: retirement</p>
+<dl>
+<dt>Headline</dt>
+<dd class="head">The income you asked for is well below what you spend today. Is that intentional?</dd>
+<dt>Why it matters</dt>
+<dd>Often it is entirely deliberate: the mortgage will be gone, the children independent, the commute finished. Sometimes it is a figure typed quickly, and it makes the projection look far healthier than it should. The app cannot tell the difference, which is why it asks rather than flags. Worth knowing that some costs rise in retirement even as others fall, particularly healthcare, travel, and the time available to spend money in.</dd>
+<dt>What to learn</dt>
+<dd>
+<ul>
+<li>Take today's spending and remove what genuinely ends: mortgage, commuting, costs of dependants, pension contributions.</li>
+<li>Add what starts or grows: health cover, travel, help around the home later on.</li>
+<li>Remember every figure here is in today's money, so you do not need to add inflation yourself. The engine does that.</li>
+</ul>
+</dd>
+<dt>Question to ask a professional</dt>
+<dd>"Is this a realistic income for the retirement I am describing, in the country I plan to live in?"</dd>
+</dl>
+</div>
+
+<h3>Action plan, assembled from these</h3>
+<p>The results screen takes the three highest-severity fired rules and prints, for each, the headline, the why, the learn list and the ask. Nothing else is generated. Three is the limit because a list of twelve problems is read as an impossible situation and closed, and because the top three are almost always the ones that matter.</p>
+<table>
+<tr><th style="width:26%">Section H topic ticked</th><th>Bumps these rules by one severity level</th></tr>
+<tr><td class="id">protection</td><td>3, 4, 5</td></tr>
+<tr><td class="id">succession</td><td>6, 11, 18</td></tr>
+<tr><td class="id">education</td><td>7</td></tr>
+<tr><td class="id">savings</td><td>1, 2</td></tr>
+<tr><td class="id">retirement</td><td>8, 9, 19, 20</td></tr>
+<tr><td class="id">investments</td><td>12, 15</td></tr>
+<tr><td class="id">cross_border</td><td>10, 17</td></tr>
+<tr><td class="id">property</td><td>16</td></tr>
+<tr><td class="id">debt</td><td>13, 14</td></tr>
+</table>
+<p class="note">A tick moves low to medium and medium to high. High stays high. Ties break on rule number, so the order is stable and two runs of the same answers always produce the same plan.</p>
+
+<h4>On the re-assessment screen</h4>
+<p>A rule that fired last time and does not fire now is shown as closed, with the same title and a single line of confirmation. A rule that fired because of an unknown, and now has a real value, counts as closed too. That is the reward loop, and it is the reason someone comes back a third time.</p>
+
+<h3>What is deliberately not in the library</h3>
+<p class="note">No product names, providers, platforms or funds. No numbers presented as targets beyond the illustrative ones used to explain a mechanism. No country-specific tax rates, allowances or thresholds, because they change annually and being wrong about them is worse than being silent. No instruction to transfer, consolidate, switch or buy anything. Where a topic is genuinely jurisdiction-dependent, the copy says "find out" and hands it to the question at the end of the entry.</p>
+
+
+<hr>
+
+<h2><span class="n">8</span>Results screen</h2>
+<p class="note">Answers two questions and stops: where am I now, and what am I missing. No twelve-page report.</p>
+
+<div class="screen">
+<p class="big neg">At 65, you are about €348,000 short</p>
+<p style="margin:0 0 14px">Retiring at 65 on €2,000 a month in today's spending power.</p>
+<hr>
+<table style="margin:0">
+<tr><td style="border:0;padding:5px 0">Estimated capital needed at 65</td><td style="border:0;padding:5px 0;text-align:right"><strong>€1,256,300</strong></td></tr>
+<tr><td style="border:0;padding:5px 0">Projected from what you have and save</td><td style="border:0;padding:5px 0;text-align:right"><strong>€907,900</strong></td></tr>
+<tr><td style="border:0;padding:5px 0">Shortfall at 65, in today's spending power</td><td style="border:0;padding:5px 0;text-align:right"><strong>€166,400</strong></td></tr>
+<tr><td style="border:0;padding:5px 0">Saving this much more each month would close it</td><td style="border:0;padding:5px 0;text-align:right"><strong>€585</strong></td></tr>
+</table>
+<hr>
+<p style="font-size:13.5px;color:#16181d;margin:0"><strong>Your state pension begins at 67 and is not included in this projection to age 65. This is a conservative estimate of your position at 65, not your shortfall across the whole of retirement. A later version will model income that starts after your retirement age.</strong></p>
+<p style="font-size:13.5px;color:#626a76;margin:8px 0 0">At a 3% withdrawal rate the gap is €767,100; at 5% it is €97,100.</p>
+<p style="font-size:13.5px;color:#626a76;margin:8px 0 0">Assumptions: inflation 3%, investments and pensions 5%, cash 2%, property 3%, income rate 4%. <strong>Change assumptions</strong> to see the effect.</p>
+</div>
+
+<p>Then, below it, the three highest-severity blind spots, each with a plain-language "why this matters" from the AI, and up to three educational next steps. Next steps describe an action to take, never a product to buy: "find the current value of your overseas pension", not "transfer it".</p>
+<div class="box warn"><p><strong>When rule 9 fires, the headline must be bounded by the retirement age.</strong> "At 65, you are €348,000 short", not "you are €348,000 short". The excluded pension note is required copy, not optional detail. Without it the app overstates the problem and the user has no way to know why.</p></div>
+<p class="note">Always show the today's-money figure next to the future one. "€1.26m" reads as impossible and people close the tab. "€166,000 in today's terms, or €585 a month" reads as a plan.</p>
+
+<hr>
+
+<h2><span class="n">9</span>Coming back in six months <span class="pill">the point of the app</span></h2>
+
+<h4>What the user does</h4>
+<ol>
+  <li>They get a nudge at six or twelve months, whichever they chose.</li>
+  <li>The form opens <strong>prefilled with their last answers</strong>, one screen per section, each asking only "still right?" Anything they confirm is copied forward.</li>
+  <li>Fields that were <code>don't know</code> last time are surfaced first and highlighted. This is the app's strongest moment: they went and found out.</li>
+  <li>Five minutes later they get a new result, and a comparison against last time.</li>
+</ol>
+
+<h4>The progress view</h4>
+<div class="screen">
+<p style="font-weight:600;margin-top:0">Since March 2026</p>
+<table style="margin:0">
+<tr><th style="width:46%">&nbsp;</th><th style="text-align:right">Then</th><th style="text-align:right">Now</th><th style="text-align:right">Change</th></tr>
+<tr><td>Retirement position</td><td style="text-align:right">−€348,400</td><td style="text-align:right">−€229,100</td><td style="text-align:right;color:#0f5b4f"><strong>+€119,300</strong></td></tr>
+<tr><td>Saved each month</td><td style="text-align:right">€500</td><td style="text-align:right">€750</td><td style="text-align:right;color:#0f5b4f">+€250</td></tr>
+<tr><td>Emergency fund</td><td style="text-align:right">1.8 months</td><td style="text-align:right">3.4 months</td><td style="text-align:right;color:#0f5b4f">resolved</td></tr>
+<tr><td>Net worth</td><td style="text-align:right">€218,000</td><td style="text-align:right">€241,500</td><td style="text-align:right;color:#0f5b4f">+€23,500</td></tr>
+<tr><td>Blind spots open</td><td style="text-align:right">7</td><td style="text-align:right">4</td><td style="text-align:right;color:#0f5b4f">3 closed</td></tr>
+</table>
+<hr>
+<p style="font-size:13.5px;color:#626a76;margin:0">Closed since last time: emergency fund, pension visibility, beneficiaries. Still open: no income protection, will not reviewed since 2019, fees unknown, retirement gap.</p>
+</div>
+
+<h4>The one rule that makes the comparison honest</h4>
+<div class="box warn">
+<p><strong>Recompute both assessments under the same assumptions before comparing them.</strong> If someone nudges growth from 5% to 6%, their position improves by a hundred thousand without them doing anything. Comparing stored result to stored result would show that as progress, which is a lie. Store answers and assumptions separately precisely so you can re-run the old answers under today's assumptions and show only real change.</p>
+<p>If they did change an assumption, say so in one line: "this comparison uses your current assumptions for both dates."</p>
+</div>
+
+<h4>What the engine must produce</h4>
+<span class="eq">delta = compare(previous.answers, current.answers, assumptions = current.assumptions)
+  → position_change, net_worth_change, monthly_saving_change, emergency_months_change
+  → blind_spots_closed[], blind_spots_new[], blind_spots_still_open[]
+  → unknowns_resolved[]      # answered "don't know" then, answered now</span>
+<p class="note"><code>unknowns_resolved</code> deserves its own line on screen. Finding out what your pension is worth is real progress, and no other finance app congratulates anyone for it.</p>
+
+<hr>
+
+<h2><span class="n">10</span>Test cases</h2>
+<p class="note">All four verified by independent calculation. Base inputs: age 40, retire at 65, wants €2,000 a month in today's money, state pension €600 a month from 65, pension pot €120,000 with €500 a month going in, investments €50,000, cash €30,000 against spending €3,000 a month, default assumptions.</p>
+<table>
+<tr><th style="width:26%">Case</th><th>Change from base</th><th style="text-align:right">Required</th><th style="text-align:right">Projected</th><th style="text-align:right">Position at 4%</th></tr>
+<tr><td><strong>A</strong> base</td><td>none</td><td style="text-align:right">€879,387</td><td style="text-align:right">€907,888</td><td style="text-align:right"><strong>+€28,501</strong></td></tr>
+<tr><td><strong>B</strong> fuller picture</td><td>+€200/m saved outside pensions, other property €200k less €120k mortgage earmarked for retirement, €15,000 debt at retirement</td><td style="text-align:right">€879,387</td><td style="text-align:right">€1,179,492</td><td style="text-align:right"><strong>+€300,105</strong></td></tr>
+<tr><td><strong>C</strong> shortfall</td><td>wants €3,000/m instead</td><td style="text-align:right">€1,507,520</td><td style="text-align:right">€907,888</td><td style="text-align:right"><strong>−€599,632</strong></td></tr>
+<tr><td><strong>D</strong> pension timing</td><td>state pension starts at 67, not 65. Rule 9 must fire and the result must be labelled conservative at 65</td><td style="text-align:right">€1,256,267</td><td style="text-align:right">€907,888</td><td style="text-align:right"><strong>−€348,379</strong></td></tr>
+</table>
+<p class="note">Supporting figures. A: position at 3% −€264,628, at 5% +€204,379; in today's money +€13,612. C: today's money −€286,388, extra monthly €1,007. D: today's money −€166,388, extra monthly €585. Case D against case A is the whole argument for collecting the start age: the same person swings from a small surplus to a €348,000 shortfall at 65. Read it correctly, that figure is the position at the chosen retirement age under v1's conservative treatment, not a lifetime shortfall, and the screen must say so.</p>
+
+<hr>
+
+<h2><span class="n">11</span>Build flow</h2>
+<span class="eq">questionnaire  →  structured JSON keyed by field ID
+               →  agent asks follow-ups for nulls and obvious inconsistencies
+               →  deterministic calculation engine
+               →  blind-spot rule engine
+               →  stored assessment (immutable)
+               →  result screen + AI explanation
+               →  6 or 12 month nudge  →  prefilled re-assessment  →  progress view</span>
+<p class="note">The agent sits either side of the maths, never inside it. Test the AI layer for invented numbers, advice-boundary breaches and unsafe recommendations; test the engine against the four cases above.</p>
+
+<h4>Deferred to v2, deliberately</h4>
+<p class="note">Income that starts after the retirement age, modelled as a second period instead of excluded. Tax and country-specific rules. Attitude to risk and investment experience. Partner as a separate person. Multi-currency holdings and conversion. Rental income. Per-account and per-loan detail. Modelling a retirement that ends at a set age. Bank feeds. Pension transfer analysis, which is heavily regulated and should stay off the form entirely for now.</p>
+
+</div>
+</body>
+</html>
