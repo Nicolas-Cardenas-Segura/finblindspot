@@ -1780,8 +1780,8 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
       "reads": [
@@ -1817,8 +1817,10 @@
       "acceptance": [
         "`tests/explain/explain.test.ts` passes with stubs: allowed draft is returned; blocked twice -> library `why` returned unchanged."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "10.4",
