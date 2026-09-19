@@ -684,7 +684,7 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
@@ -726,8 +726,10 @@
       "acceptance": [
         "`tests/engine/derived.test.ts` passes with `BASE` -> `monthly_spending 3000`, `financial_assets 200000`; `spend_other: null` -> `monthly_spending null` and `monthly_surplus null`; `debt_total: 0` -> `net_worth` equals `financial_assets + property_net`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; A–D projection tests pass; parent typecheck+test green"
+      ]
     },
     {
       "id": "5.2",
@@ -793,8 +795,8 @@
       ],
       "risk": "high",
       "tier": "balanced",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
       "reads": [
@@ -833,8 +835,10 @@
       "acceptance": [
         "`npm run typecheck` exits 0."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; A–D projection tests pass; parent typecheck+test green"
+      ]
     },
     {
       "id": "5.4",
@@ -846,8 +850,8 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
       "reads": [
@@ -886,8 +890,10 @@
       "acceptance": [
         "the file passes."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; A–D projection tests pass; parent typecheck+test green"
+      ]
     },
     {
       "id": "6.1",
