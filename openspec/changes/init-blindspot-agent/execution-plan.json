@@ -741,7 +741,7 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
@@ -783,8 +783,10 @@
       "acceptance": [
         "`tests/engine/validate.test.ts` passes with `BASE` -> `[]`; `retire_age 40` -> one error; `cash_growth_rate 0` -> one error; `pension_start_age 95` -> one error."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "5.3",
