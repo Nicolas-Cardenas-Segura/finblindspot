@@ -51,16 +51,40 @@ The system SHALL offer an explicit "I don't know" option on every money and yes/
 - **WHEN** the user answers "none" or `0` on a field marked "0 valid"
 - **THEN** the value `0` is stored, distinct from `null`.
 
-### Requirement: LLM-Assisted Answer Extraction
-The system SHALL use the interview model only to map a free-text reply onto the current field's typed value (or `null`), validated by the field's schema; the model SHALL not choose the next question, alter stored answers, or compute anything.
+### Requirement: Intent-First Inbound Pipeline
+Every free-text message SHALL pass through three stages in order: (1) the deterministic sensitive-input filter, (2) the interview model classifying the user's **intent** for the current field into exactly one of `answer`, `dont_know`, `question`, `correction`, `skip_request`, `off_topic` and, for `answer`/`correction`, extracting the typed value, (3) the deterministic state machine acting on that intent. The model SHALL not choose the next question, alter stored answers, decide what fires, or compute anything; given the same stored answers the engines SHALL produce the same blind spots regardless of how the intent was phrased.
 
-#### Scenario: Natural-language amount
+#### Scenario: Plain answer
 - **WHEN** the current field is `income_monthly` and the user writes "about 4.2k after tax"
-- **THEN** the extractor returns `4200`, the schema accepts it, and the state machine advances.
+- **THEN** intent is `answer` with value `4200`, the schema accepts it, and the state machine advances.
+
+#### Scenario: Keyboard option or command
+- **WHEN** the reply exactly matches one of the field's options, a "don't know" synonym, or starts with `/`
+- **THEN** the intent is resolved deterministically without a model call.
+
+#### Scenario: User asks a question instead of answering
+- **WHEN** the user writes "why do you need my mortgage?" on `home_mortgage`
+- **THEN** intent is `question`; the bot answers from the field's `helper`/rationale text (model rephrasing allowed, guardrailed), then re-asks the same field; nothing is stored.
+
+#### Scenario: User corrects an earlier answer
+- **WHEN** the user writes "actually my rent is 1,500 not 1,200" while on a later field
+- **THEN** intent is `correction` with `field_id = spend_housing` and value `1500`; the state machine overwrites that field in the draft, confirms, and re-asks the current field.
+
+#### Scenario: User asks to skip
+- **WHEN** intent is `skip_request` on a field with `allowUnknown`
+- **THEN** the field is stored as `null` (same path as `dont_know`); on a required field without `allowUnknown` the bot explains the field is needed and re-asks.
+
+#### Scenario: Off-topic message
+- **WHEN** intent is `off_topic` (greeting, chit-chat, unrelated request)
+- **THEN** the bot replies with one short line and re-asks the current field; nothing is stored.
 
 #### Scenario: Extraction rejected by schema
-- **WHEN** the extractor returns a value outside the field's range (e.g. `age = 12`)
+- **WHEN** an `answer`/`correction` value fails the field's range (e.g. `age = 12`)
 - **THEN** the value is discarded and the bot re-asks with the valid range.
+
+#### Scenario: Same answers, same findings
+- **WHEN** two users reach identical stored `answers` through different phrasings and intents
+- **THEN** `runAssessment` yields identical `results` and `blind_spots`.
 
 ### Requirement: Deterministic Sensitive Input Filter
 The system SHALL screen every inbound message with a deterministic (non-LLM) filter before the message is sent to any model provider.

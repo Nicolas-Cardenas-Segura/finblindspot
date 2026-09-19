@@ -32,9 +32,28 @@ The system SHALL support `/revisit`, which re-runs the questionnaire prefilled f
 - **WHEN** user sends `/revisit` and no complete assessment exists for their identifier
 - **THEN** the bot explains that there is nothing to compare against yet and offers `/start`.
 
-#### Scenario: Simulated nudge
-- **WHEN** the user has a complete assessment
-- **THEN** the bot offers a `/revisit` reminder framed as "six or twelve months later" (chosen at the end of the first assessment); actual scheduled push delivery is out of scope for v1 and the reminder text is sent on the next interaction instead.
+### Requirement: Scheduled Re-Assessment Nudge
+The system SHALL ask the user, after the results message, whether to be reminded in six or twelve months, SHALL persist a nudge `{ user_id, assessment_id, due_at, sent_at }`, and SHALL send the reminder as a Telegram message when it falls due.
+
+#### Scenario: Nudge chosen
+- **WHEN** the user answers `6` or `12` (months) to the reminder question
+- **THEN** a nudge row is stored with `due_at = created_at + N months` and the bot confirms the date.
+
+#### Scenario: Nudge declined
+- **WHEN** the user answers "no" or does not answer within the interview session
+- **THEN** no nudge row is stored and the bot mentions `/revisit` is available at any time.
+
+#### Scenario: Nudge falls due
+- **WHEN** the scheduler tick finds a nudge with `due_at <= now` and `sent_at` null
+- **THEN** the bot sends "It has been N months since your last check. Reply /revisit to update it in five minutes and see what moved.", sets `sent_at`, and never sends the same nudge twice.
+
+#### Scenario: Superseded by an earlier re-assessment
+- **WHEN** the user completes a new assessment before a pending nudge is due
+- **THEN** the pending nudge is cancelled (`sent_at` set to the cancellation time with `cancelled = 1`) and the new assessment asks the reminder question again.
+
+#### Scenario: Demo fast-forward
+- **WHEN** an operator sets `NUDGE_TICK_SECONDS` and `NUDGE_DEMO_MINUTES` in the environment
+- **THEN** `N months` is replaced by `N * NUDGE_DEMO_MINUTES` minutes so the loop can be shown live; production leaves both unset.
 
 ### Requirement: Comparison Under One Set of Assumptions
 The system SHALL compute the progress view as `compare(previous.answers, current.answers, assumptions = current.assumptions)`, recomputing the previous assessment's `derived`, `results` and fired rules under the current assumptions before diffing.
@@ -56,4 +75,4 @@ The system SHALL delete all stored data for a user on request.
 
 #### Scenario: User requests deletion
 - **WHEN** user sends `/forget`
-- **THEN** the system deletes every assessment record (draft and complete), interview state, and compliance trigger row associated with that Telegram user identifier and confirms the deletion in the chat.
+- **THEN** the system deletes every assessment record (draft and complete), interview state, pending nudge, and compliance trigger row associated with that Telegram user identifier and confirms the deletion in the chat.

@@ -20,15 +20,15 @@ The product content is frozen in [`finance-blind-spot-v1-spec.html`](../../../fi
 - No custom mobile/web UI (Telegram is the exclusive user interface for the MVP; the v1 document's "screens" map to Telegram messages).
 - No banking APIs, live account credentials, or exact figures (approximate numbers only).
 - No distributed database (local SQLite).
-- No scheduled push nudges (the "six or twelve months" reminder is offered on the next interaction).
+- No external job queue: the 6/12-month nudge runs on an in-process interval against the SQLite `nudges` table.
 - Everything v1 §11 defers to v2: post-retirement income periods, tax, risk attitude, partner as a separate person, multi-currency conversion, rental income, per-account detail, retirement end age, bank feeds, pension transfer analysis.
 
 ## Decisions
 
 ### 1. The agent sits either side of the maths, never inside it
-- **Decision**: The LLM (a) maps a free-text reply onto the current field's typed value or `null`, (b) rephrases a library `why` around the user's numbers. Everything else — question order, validation, derived values, projection, rules, severity, ranking, comparison, results copy — is pure TypeScript.
-- **Rationale**: Deterministic, auditable, testable against v1 §10; gives Galtea two clear boundaries (invented numbers, advice drift).
-- **Alternatives Considered**: End-to-end prompt-based assessment (rejected: non-deterministic and dangerous under financial regulations).
+- **Decision**: The LLM is used at exactly two points. **Inbound**, before the state machine: it classifies the user's intent for the current field (`answer`, `dont_know`, `question`, `correction`, `skip_request`, `off_topic`) and, for `answer`/`correction`, extracts the typed value and target field. **Outbound**, after the engines: it rephrases a library `why` (or a field's rationale, for `question` intents) around the user's numbers. Everything in between — question order, validation, derived values, projection, rules, severity, ranking, comparison, results copy — is pure TypeScript keyed on stored answers, so identical `answers` always yield identical `blind_spots` no matter how they were phrased.
+- **Rationale**: The non-deterministic model is where it adds value (understanding people) and absent where it would cost trust (deciding findings). Deterministic, auditable, testable against v1 §10; gives Galtea two clear boundaries (invented numbers, advice drift).
+- **Alternatives Considered**: Regex-only parsing of replies (rejected: brittle for "about 4.2k after tax", cannot detect questions or corrections). Letting the model pick which rules apply, or end-to-end prompt-based assessment (rejected: non-idempotent, unauditable, dangerous under financial regulations).
 
 ### 2. Field IDs are the contract
 - **Decision**: `Answers` is a flat object keyed by the v1 field IDs (plus `pensions: PensionRow[]` and `learning_priorities: Topic[]`). Every question template, schema, rule and formula references a field ID. The questionnaire order and copy live in one data file (`src/questionnaire/fields.ts`).
@@ -76,9 +76,18 @@ The product content is frozen in [`finance-blind-spot-v1-spec.html`](../../../fi
 
 ### 12. Storage: immutable assessments (v1 §4)
 - **Decision**: SQLite via `better-sqlite3` (`:memory:` in tests). Tables: `assessments` (`id`, `user_id`, `created_at`, `status`, `base_currency`, `answers_json`, `assumptions_json`, `derived_json`, `results_json`, `blind_spots_json`), `interview_state` (`user_id`, `state_json`) for drafts, `compliance_triggers`. A complete assessment row is never updated; a re-assessment inserts a new row. `/forget` deletes every row for the user.
-- **Rationale**: Separate `answers`/`assumptions`/`results` allow recomputing old answers under today's assumptions (Decision 13).
+- **Rationale**: Separate `answers`/`assumptions`/`results` allow recomputing old answers under today's assumptions (Decision 15).
 
-### 13. Re-assessment and comparison (v1 §9)
+### 13. Inbound intent classification
+- **Decision**: `classifyIntent(field, reply, context)` runs after `redactSensitive` and before `applyAnswer`. Deterministic shortcuts first: `/command`, exact keyboard option, don't-know synonym. Otherwise one `MODELS.interview` call with `INTENT_PROMPT` returns JSON `{ intent, value?, field_id? }`; `value` is validated by the field's zod parser, `field_id` for corrections must be an already-answered field in the draft. The state machine maps intents: `answer` → store & advance; `dont_know`/`skip_request` (when `allowUnknown`) → store `null` & advance; `correction` → overwrite `field_id`, confirm, re-ask current; `question` → guarded rephrase of the field's `rationale`, re-ask; `off_topic` → one-line nudge back, re-ask. Model failure or unparsable JSON → treated as `off_topic` (re-ask), never as an answer.
+- **Rationale**: One model call per free-text turn; corrections and questions no longer derail a 40-field interview; every stored value still passes the schema.
+
+### 14. Scheduled nudge (v1 §9 "They get a nudge at six or twelve months")
+- **Decision**: After the results message the bot asks "Remind you in 6 or 12 months?" and stores a `nudges` row `{ id, user_id, assessment_id, due_at, sent_at, cancelled }`. `startNudgeScheduler` runs `setInterval` every `NUDGE_TICK_SECONDS` (default 3600) calling `store.dueNudges(now)` and sending the reminder through the Telegram transport, then `markNudgeSent`. Completing a new assessment cancels the user's pending nudge. For demos, `NUDGE_DEMO_MINUTES` scales months to minutes.
+- **Rationale**: The loop is the product; an in-process interval against SQLite is enough for a single-instance bot and needs no extra infrastructure.
+- **Alternatives Considered**: External cron / job queue (rejected: more moving parts than the hackathon deployment justifies).
+
+### 15. Re-assessment and comparison (v1 §9)
 - **Decision**: `/revisit` builds an `InterviewState` prefilled from the latest complete assessment, orders previously-`null` fields first, then walks sections A–H accepting "same" to copy forward. On completion `compare(previous.answers, current.answers, current.assumptions)` recomputes **both** runs through `projection` + `rules` under the current assumptions and returns `Delta`. The progress view is rendered from `Delta` only.
 - **Rationale**: Comparing stored results would show an assumption tweak as progress.
 
@@ -98,16 +107,18 @@ src/
     countryCurrency.ts             COUNTRY_CURRENCY lookup (Decision 4)
   llm/
     nebius.ts                      OpenAI-SDK client for Nebius + MODELS constants
-    prompts.ts                     SYSTEM_PROMPT, EXTRACTION_PROMPT, EXPLANATION_PROMPT, GUARDRAIL_PROMPT
+    prompts.ts                     SYSTEM_PROMPT, INTENT_PROMPT, EXPLANATION_PROMPT, GUARDRAIL_PROMPT
   privacy/
     sensitiveFilter.ts             redactSensitive() (Decision 11)
   questionnaire/
-    fields.ts                      FIELDS: ordered FieldDef[] with id, section, prompt, type, options, showIf (v1 §3)
+    fields.ts                      FIELDS: ordered FieldDef[] with id, section, prompt, rationale, type, options, showIf (v1 §3)
     schema.ts                      zod schemas: AnswersSchema, PensionRowSchema, AssumptionsSchema, per-field parsers
-    extract.ts                     extractFieldValue(): LLM maps reply -> typed value | null
+    intent.ts                      classifyIntent(): deterministic shortcuts, else LLM -> Intent (Decision 13)
   interview/
-    stateMachine.ts                createState(), currentField(), applyAnswer(), isComplete()
+    stateMachine.ts                createState(), currentField(), applyAnswer(), applyCorrection(), isComplete()
     revisit.ts                     createRevisitState(): prefilled state, unknowns first
+  nudge/
+    scheduler.ts                   startNudgeScheduler(), dueAt() (Decision 14)
   engine/
     derived.ts                     computeDerived()
     validate.ts                    validateAnswers()
@@ -117,7 +128,7 @@ src/
     evaluate.ts                    evaluateRules(), applyTopicBump(), selectActionPlan()
   assess/
     assess.ts                      runAssessment(): answers+assumptions -> derived, results, blind_spots
-    compare.ts                     compare(): Delta (Decision 13)
+    compare.ts                     compare(): Delta (Decision 15)
   guardrail/
     classifier.ts                  classifyOutbound(): text -> Verdict
     numbers.ts                     allowedNumbers(), hasInventedNumber()
@@ -129,6 +140,7 @@ src/
   store/
     db.ts                          openStore(path): Store (better-sqlite3)
     assessments.ts                 assessments + interview_state table functions
+    nudges.ts                      nudges table functions
     triggers.ts                    compliance_triggers table functions
   agent/
     agent.ts                       Mastra Agent definition (model, instructions)
@@ -232,6 +244,7 @@ export interface FieldDef {
   section: Section;
   prompt: string;                    // on-screen wording from v1 §3
   helper?: string;                   // required helper copy
+  rationale: string;                 // one sentence: why we ask / what it feeds (v1 §3 "Used for"); source for `question` intents
   type: FieldType;
   options?: string[];                // enum / multi_select
   zeroValid?: boolean;
@@ -310,16 +323,30 @@ export function compare(previous: Assessment, current: Assessment): Delta;   // 
 export interface RedactionResult { text: string; redacted: boolean; kinds: Array<'iban' | 'card' | 'passport' | 'tax_id' | 'digit_run'> }
 export function redactSensitive(text: string): RedactionResult;
 
-// [src/questionnaire/extract.ts]
-export type Extracted<T> = { ok: true; value: T | null } | { ok: false };   // null = user said don't know
-export function extractFieldValue(field: FieldDef, reply: string, deps: { client: OpenAI }): Promise<Extracted<unknown>>;
+// [src/questionnaire/intent.ts]
+export type IntentKind = 'answer' | 'dont_know' | 'question' | 'correction' | 'skip_request' | 'off_topic' | 'command';
+export type Intent =
+  | { kind: 'answer'; value: unknown }                       // value already validated by the field parser
+  | { kind: 'correction'; fieldId: FieldId; value: unknown }
+  | { kind: 'question'; text: string }
+  | { kind: 'command'; command: string }
+  | { kind: 'dont_know' } | { kind: 'skip_request' } | { kind: 'off_topic' };
+export interface IntentContext { answered: Partial<Answers>; currency?: Currency }
+export function classifyIntent(field: FieldDef, reply: string, ctx: IntentContext, deps: { client: OpenAI }): Promise<Intent>;
+export function classifyIntentDeterministic(field: FieldDef, reply: string): Intent | null;   // shortcuts; null = needs model
 
 // [src/interview/stateMachine.ts]
-export interface InterviewState { userId: string; answers: Partial<Answers>; assumptions: Assumptions; pensionDraft?: Partial<PensionRow>; fieldIndex: number; pensionFieldIndex?: number; retries: number; mode: 'assess' | 'revisit'; prefill?: Answers; complete: boolean }
+export interface InterviewState { userId: string; answers: Partial<Answers>; assumptions: Assumptions; pensionDraft?: Partial<PensionRow>; fieldIndex: number; pensionFieldIndex?: number; retries: number; mode: 'assess' | 'revisit'; prefill?: Answers; complete: boolean; awaitingNudgeChoice?: boolean }
 export function createState(userId: string): InterviewState;
 export function currentField(s: InterviewState): FieldDef | null;              // null when complete
 export function applyAnswer(s: InterviewState, value: unknown): InterviewState;
+export function applyCorrection(s: InterviewState, fieldId: FieldId, value: unknown): InterviewState;   // overwrites an answered field, keeps position
 export function isComplete(s: InterviewState): boolean;
+
+// [src/nudge/scheduler.ts]
+export interface Nudge { id: string; userId: string; assessmentId: string; dueAt: string; sentAt: string | null; cancelled: boolean }
+export function dueAt(from: Date, months: 6 | 12, demoMinutes?: number): Date;
+export function startNudgeScheduler(deps: { store: Store; send: (userId: string, text: string) => Promise<void>; tickSeconds: number; now?: () => Date }): { stop(): void; tick(): Promise<number> };   // tick returns nudges sent
 
 // [src/interview/revisit.ts]
 export function createRevisitState(userId: string, previous: Assessment): InterviewState;   // unknown fields first, prefill set
@@ -361,16 +388,20 @@ export interface Store {
   saveState(s: InterviewState): void;
   loadState(userId: string): InterviewState | undefined;
   clearState(userId: string): void;
+  insertNudge(n: Nudge): void;
+  dueNudges(now: string): Nudge[];                                 // sent_at null, cancelled 0, due_at <= now
+  markNudgeSent(id: string, sentAt: string): void;
+  cancelPendingNudges(userId: string, at: string): number;
   logTrigger(t: ComplianceTrigger): void;
   countTriggers(since?: string): number;
-  deleteUser(userId: string): { assessments: number; states: number; triggers: number };
+  deleteUser(userId: string): { assessments: number; states: number; nudges: number; triggers: number };
 }
 export function openStore(path: string | ':memory:'): Store;
 
 // [src/agent/handlers.ts]
 export interface Incoming { userId: string; text: string }
 export interface Outgoing { text: string; options?: string[] }   // options -> reply keyboard
-export interface HandlerDeps { store: Store; llm: OpenAI; guard: GuardDeps; now?: () => Date }
+export interface HandlerDeps { store: Store; llm: OpenAI; guard: GuardDeps; now?: () => Date; nudgeDemoMinutes?: number }
 export function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<Outgoing>;
 ```
 
@@ -385,7 +416,9 @@ External APIs relied on:
 
 - **[Risk] ~40 questions is long for a chat interface** → *Mitigation*: reply keyboards for enum/yes-no fields, one-line prompts, progress marker per section ("Section C of H"), `/start` resumes a draft.
 - **[Risk] Telegram webhook drops on venue WiFi** → *Mitigation*: long polling during development; tunnel documented for webhooks.
-- **[Risk] Latency stacking (extraction + explanation + classifier)** → *Mitigation*: extraction only when a reply is not a keyboard option; explanation only for the three action-plan rules; templated text exempt from classification; cap regeneration at 2.
+- **[Risk] Latency stacking (intent + explanation + classifier)** → *Mitigation*: intent model call only when a reply is not a command, keyboard option or don't-know synonym; explanation only for the three action-plan rules; templated text exempt from classification; cap regeneration at 2.
+- **[Risk] Intent model mislabels a question as an answer** → *Mitigation*: every `answer` value must pass the field's zod parser; failures re-ask; corrections may only target already-answered fields; Galtea `intent_confusion` prompts probe this.
+- **[Risk] Nudge scheduler double-sends after a restart** → *Mitigation*: `markNudgeSent` before the send resolves is not enough — `dueNudges` filters on `sent_at IS NULL` and the send + mark run in one tick; tests cover restart with an already-sent row.
 - **[Risk] Unverified platform assumptions (Mastra Telegram adapter, Nebius model IDs, Galtea SDK)** → *Mitigation*: tasks 1.4, 1.5, 11.1 verify on day one; fallbacks recorded in Decisions 8–9.
 - **[Risk] Formula drift from v1 §5** → *Mitigation*: test cases A–D are the acceptance suite; no projection change merges without them passing.
 - **[Risk] Model rephrases `why` into advice or invents a number** → *Mitigation*: Decision 7 number check + classifier + library fallback; Galtea prompts target exactly this.

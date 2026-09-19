@@ -19,10 +19,10 @@ The re-assessment is the product: every assessment is stored immutably, and `/re
 
 | Capability | What it does |
 | --- | --- |
-| `conversational-interview` | Consent first, then the v1 questionnaire (sections A–H, ~40 field IDs) one message at a time over Telegram; every money and yes/no field offers "I don't know" (stored as `null`, never `0`); the model only maps a free-text reply onto the current field; sensitive identifiers are redacted before any model call. |
+| `conversational-interview` | Consent first, then the v1 questionnaire (sections A–H, ~40 field IDs) one message at a time over Telegram; every money and yes/no field offers "I don't know" (stored as `null`, never `0`). Each free-text reply goes through an LLM **intent** step first (answer / don't know / question / correction / skip / off-topic) so questions and corrections don't derail the interview; only schema-validated values reach the deterministic state machine. Sensitive identifiers are redacted before any model call. |
 | `calculation-engine` | Pure TypeScript: derived values, the v1 §5 retirement projection (`required_pot`, `projected_assets`, `position`, today's-money and 3/4/5% sensitivity, minimum-estimate flag), input validation, the twenty v1 §6 blind-spot rules with severity bump and a deterministic top-three action plan. Reproduces v1 test cases A–D exactly. |
 | `advice-guardrail` | Blind-spot copy comes from a static content library (v1 §7); the model may rephrase only "why it matters" around the user's numbers. An independent classifier plus an invented-number check gate every model-generated message (max 2 attempts, then the library copy), logging every compliance trigger. |
-| `baseline-comparison` | Immutable assessment records (answers, assumptions, results stored separately); `/revisit` prefills from the last one, asks previous unknowns first, recomputes both runs under current assumptions and renders Then / Now / Change with closed, new and still-open blind spots and `unknowns_resolved`; `/forget` erases all user data. |
+| `baseline-comparison` | Immutable assessment records (answers, assumptions, results stored separately); `/revisit` prefills from the last one, asks previous unknowns first, recomputes both runs under current assumptions and renders Then / Now / Change with closed, new and still-open blind spots and `unknowns_resolved`; a scheduled 6- or 12-month Telegram nudge brings the user back; `/forget` erases all user data. |
 
 Behaviour contracts for each capability live in [`openspec/changes/init-blindspot-agent/specs/`](openspec/changes/init-blindspot-agent/specs/).
 
@@ -42,6 +42,7 @@ Under EU regulations, personalized retail investment advice is a regulated activ
   3. **Outbound Guardrail**: an independent fast model (`Nemotron-3_5-Lightning`) and a deterministic invented-number check gate every model-generated message before delivery.
 
 ### 2. The Agent Sits Either Side of the Maths, Never Inside It
+- **Model first, then code**: the non-deterministic model interprets the *person* (what did this reply mean? is it a question, a correction, an answer?); the deterministic code interprets the *answers*. Identical stored answers always produce identical blind spots, however they were phrased.
 - **Field IDs are the contract**: every question maps to one ID; the engine only ever reads IDs.
 - **Plain Code Engine**: the projection formulas, validation, the twenty rules, severities, topic bump and top-three selection are pure TypeScript, specified in the [calculation-engine spec](openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md) and pinned by v1 test cases A–D.
 - **"I don't know" is an answer, not a zero**: stored as `null`, left out of the maths, listed as missing, and it fires its own blind spot. Not knowing is the finding.
@@ -51,7 +52,7 @@ Under EU regulations, personalized retail investment advice is a regulated activ
 - **Zero Credentials**: Never collects or stores bank credentials, account numbers, card details, tax IDs, or passport numbers.
 - **Approximations Only**: All evaluations operate on ranges, rounded numbers, and self-reported estimates.
 - **Sensitive Input Handling**: A deterministic (non-LLM) filter redacts IBANs, card numbers, passport and tax identifiers before any user text reaches a model provider, and reminds the user that only ranges and estimates are needed.
-- **Erasure on Request**: `/forget` deletes every assessment, interview state, and compliance log entry for the requesting Telegram user.
+- **Erasure on Request**: `/forget` deletes every assessment, interview state, pending reminder, and compliance log entry for the requesting Telegram user.
 
 ---
 
@@ -59,7 +60,7 @@ Under EU regulations, personalized retail investment advice is a regulated activ
 
 | Command | Behaviour |
 | --- | --- |
-| `/start` | Shows the education-only disclosure and no-credentials notice, records consent, then walks sections A–H one question at a time (resumes a draft if one exists). Ends with the results message and the three-item action plan. |
+| `/start` | Shows the education-only disclosure and no-credentials notice, records consent, then walks sections A–H one question at a time (resumes a draft if one exists). Ends with the results message, the three-item action plan, and a "remind me in 6 or 12 months?" choice that schedules a Telegram nudge. |
 | `/revisit` | Prefilled re-assessment: previous unknowns first, then "still right?" per field; creates a new immutable assessment and renders the Then / Now / Change progress view. |
 | `/forget` | Deletes all stored data for the requesting user and confirms in chat. |
 
@@ -75,7 +76,7 @@ This project follows [OpenSpec](https://github.com/openspec/openspec) to maintai
   - [`specs/`](openspec/changes/init-blindspot-agent/specs/) — requirements and scenarios per capability.
   - [`tasks.md`](openspec/changes/init-blindspot-agent/tasks.md) — the phased implementation checklist.
 
-Out of scope for the MVP: custom web/mobile UI, banking API or credential integrations, distributed database infrastructure, scheduled push nudges, and everything the v1 document defers to v2 (post-retirement income periods, tax, multi-currency conversion, rental income, pension transfer analysis, …).
+Out of scope for the MVP: custom web/mobile UI, banking API or credential integrations, distributed database infrastructure, an external job queue (the nudge scheduler is an in-process interval over SQLite), and everything the v1 document defers to v2 (post-retirement income periods, tax, multi-currency conversion, rental income, pension transfer analysis, …).
 
 ---
 
@@ -85,7 +86,7 @@ Out of scope for the MVP: custom web/mobile UI, banking API or credential integr
 - **Model Inference**: [Nebius Token Factory](https://tokenfactory.nebius.com) (`DeepSeek-V4.1-Flash` for answer extraction and explanation, `Nemotron-3_5-Lightning` for the outbound guardrail)
 - **Evaluation & Adversarial Testing**: [Galtea](https://galtea.ai) (advice-boundary, invented-number and rule-not-fired probes)
 - **Language & Runtime**: TypeScript / Node.js, `zod`
-- **Storage**: Local SQLite (`better-sqlite3`) — immutable assessments, interview state, compliance triggers
+- **Storage**: Local SQLite (`better-sqlite3`) — immutable assessments, interview state, nudges, compliance triggers
 - **Content**: `content/blind_spots.json` — the v1 §7 copy, keyed by rule id, editable without a deploy
 - **Testing**: Vitest; v1 test cases A–D are the engine's acceptance suite
 
@@ -102,10 +103,10 @@ Tracked in [`tasks.md`](openspec/changes/init-blindspot-agent/tasks.md) as small
 5. Calculation engine (derived values, validation, projection).
 6. Blind-spot rules (twenty rules, topic bump, action plan).
 7. Assessment & comparison.
-8. SQLite store (immutable assessments, interview state, triggers, erasure).
-9. LLM prompts, extraction, guardrail (classifier + invented-number check).
+8. SQLite store (immutable assessments, interview state, nudges, triggers, erasure).
+9. LLM prompts, inbound intent classification, guardrail (classifier + invented-number check).
 10. Content library, explanation, rendering.
-11. Interview state machine & revisit.
+11. Interview state machine, revisit & nudge scheduler.
 12. Agent, handlers, Telegram transport.
 13. Galtea adversarial evaluation (baseline, fix, re-run).
 14. Documentation & end-to-end rehearsal.
@@ -118,7 +119,7 @@ The task-granularity rules that produced this list live in [`openspec/config.yam
 
 *Environment configuration and setup instructions will be finalized in Phase 1 of the implementation plan.*
 
-Expected prerequisites: Node.js with TypeScript, a Telegram bot token, a Nebius Token Factory API key (base URL `https://api.tokenfactory.nebius.com/v1/`), and a Galtea API key for adversarial evaluation runs.
+Expected prerequisites: Node.js with TypeScript, a Telegram bot token, a Nebius Token Factory API key (base URL `https://api.tokenfactory.nebius.com/v1/`), and a Galtea API key for adversarial evaluation runs. For demos, `NUDGE_DEMO_MINUTES=1` turns the 6/12-month reminder into 6/12 minutes.
 
 ---
 
