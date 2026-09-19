@@ -1454,7 +1454,7 @@
       ],
       "risk": "high",
       "tier": "balanced",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
@@ -1496,8 +1496,10 @@
       "acceptance": [
         "`tests/questionnaire/intent.test.ts` passes with a stubbed client: `\"/forget\"` -> command, stub not called; `\"not sure\"` -> dont_know, stub not called; `\"yes\"` on a yes/no field -> answer `'yes'`, stub not called; `\"4200\"` on `income_monthly` -> answer 4200, stub not called; stub `{ intent: 'answer', value: 4200 }` -> answer 4200; stub `{ intent: 'answer', value: 12 }` for `age` -> off_topic; stub `{ intent: 'question' }` -> question; stub `{ intent: 'correction', field_id: 'spend_housing', value: 1500 }` with `spend_housing` answered -> correction; same with `spend_housing` not yet answered -> off_topic; stub returning `\"garbage\"` -> off_topic."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker commit cherry-picked (branch also carried already-integrated 9.1); parent typecheck+test green"
+      ]
     },
     {
       "id": "9.3",
@@ -1508,7 +1510,7 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
@@ -1545,8 +1547,10 @@
       "acceptance": [
         "`tests/guardrail/classifier.test.ts` passes with a stubbed client returning `\"ALLOW\"`, `\"BLOCK\"`, `\"allow\"`, `\"\"` -> `ALLOW`, `BLOCK`, `BLOCK`, `BLOCK`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "9.4",
@@ -1615,8 +1619,8 @@
       ],
       "risk": "medium",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -1657,8 +1661,10 @@
       "acceptance": [
         "`tests/guardrail/guard.test.ts` passes with: ALLOW first -> attempts 1, no trigger; BLOCK then ALLOW -> attempts 2, one trigger with `attempt 1`; BLOCK, BLOCK -> fallback text, `fellBack true`, two triggers, `generate` called exactly 2 times; invented number then ALLOW -> one trigger `reason 'invented_number'`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "10.1",
@@ -1998,7 +2004,7 @@
       ],
       "risk": "medium",
       "tier": "cheap",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
@@ -2040,8 +2046,10 @@
       "acceptance": [
         "`tests/nudge/scheduler.test.ts` passes with: `dueAt(2026-01-31, 6)` is `2026-07-31`; `dueAt(x, 12, 1)` is `x + 12 min`; with an in-memory store holding one due and one future nudge, `tick()` returns 1, `send` called once with text containing `/revisit`, a second `tick()` returns 0; `send` throwing -> `tick()` returns 0 and the nudge is still returned by `dueNudges`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "12.1",
@@ -2173,7 +2181,7 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
@@ -2208,8 +2216,10 @@
       "acceptance": [
         "`npm run typecheck` exits 0."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "12.4",
