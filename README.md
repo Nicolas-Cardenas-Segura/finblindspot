@@ -82,7 +82,7 @@ Out of scope for the MVP: custom web/mobile UI, banking API or credential integr
 
 ## 🛠️ Stack & Technology
 
-- **Agent & Channels**: [Mastra](https://mastra.ai) agent; Telegram via Mastra adapter or `grammy` long polling
+- **Agent & Channels**: [Mastra](https://mastra.ai) agent; Telegram via `grammy` long polling (see [`docs/tunnel.md`](docs/tunnel.md) — no public URL needed)
 - **Model Inference**: [Nebius Token Factory](https://tokenfactory.nebius.com) (`DeepSeek-V4.1-Flash` for answer extraction and explanation, `Nemotron-3_5-Lightning` for the outbound guardrail)
 - **Evaluation & Adversarial Testing**: [Galtea](https://galtea.ai) (advice-boundary, invented-number and rule-not-fired probes)
 - **Language & Runtime**: TypeScript / Node.js, `zod`
@@ -94,7 +94,7 @@ Out of scope for the MVP: custom web/mobile UI, banking API or credential integr
 
 ## 🗺️ Implementation Roadmap
 
-Tracked in [`tasks.md`](openspec/changes/init-blindspot-agent/tasks.md) as small, single-file tasks (each names its target path, exported signature, and a mechanically checkable "Done when"); the project layout and shared types they reference are in [`design.md`](openspec/changes/init-blindspot-agent/design.md). No group is implemented yet.
+Tracked in [`tasks.md`](openspec/changes/init-blindspot-agent/tasks.md) as small, single-file tasks (each names its target path, exported signature, and a mechanically checkable "Done when"); the project layout and shared types they reference are in [`design.md`](openspec/changes/init-blindspot-agent/design.md). Groups 1–13 are implemented under `src/`; the credential-dependent spikes (1.4, 13.1, 13.4, 14.3) are still open.
 
 1. Project skeleton & external API spikes (Nebius model IDs, Telegram transport).
 2. Configuration tables (assumption defaults/ranges, country→currency).
@@ -117,9 +117,28 @@ The task-granularity rules that produced this list live in [`openspec/config.yam
 
 ## 🚀 Getting Started
 
-*Environment configuration and setup instructions will be finalized in Phase 1 of the implementation plan.*
+Requires Node.js 20+.
 
-Expected prerequisites: Node.js with TypeScript, a Telegram bot token, a Nebius Token Factory API key (base URL `https://api.tokenfactory.nebius.com/v1/`), and a Galtea API key for adversarial evaluation runs. For demos, `NUDGE_DEMO_MINUTES=1` turns the 6/12-month reminder into 6/12 minutes.
+```sh
+cp .env.example .env   # fill in TELEGRAM_BOT_TOKEN and NEBIUS_API_KEY
+npm install
+npm run dev            # tsx watch src/index.ts — long polling, no tunnel needed
+```
+
+Other scripts: `npm test` (Vitest — v1 test cases A–D in `tests/fixtures/cases.ts` are the engine's acceptance suite), `npm run typecheck`, `npm run build` then `npm start`.
+
+Environment variables (`.env.example`):
+
+| Variable | Purpose |
+| --- | --- |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather (required) |
+| `NEBIUS_API_KEY`, `NEBIUS_BASE_URL` | Nebius Token Factory, OpenAI-compatible (required) |
+| `DATABASE_PATH` | SQLite file; parent directory is created on boot |
+| `NUDGE_TICK_SECONDS` | How often the in-process scheduler checks for due reminders |
+| `NUDGE_DEMO_MINUTES` | Demo fast-forward: "6 months" becomes 6 × N minutes (empty = real months) |
+| `GALTEA_API_KEY` | Optional; `npx tsx eval/galtea/run.ts --offline` runs the adversarial suite without it |
+
+Then talk to the bot: `/start` to run an assessment, `/revisit` to re-assess and see what moved, `/forget` to erase everything. The model only interprets what you *meant*; every number and every blind spot comes from `src/engine/` and `src/rules/` — see [`finance-blind-spot-v1-spec.html`](finance-blind-spot-v1-spec.html) for the formulas and rules being implemented.
 
 ---
 
