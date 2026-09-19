@@ -907,7 +907,7 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
@@ -949,8 +949,10 @@
       "acceptance": [
         "`tests/rules/rules.test.ts` passes asserting `RULES.length === 20`, numbers are `1..20` ascending, ids are unique, and severities match the table."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; 20 rules + fires tests; parent typecheck+test green"
+      ]
     },
     {
       "id": "6.2",
@@ -963,8 +965,8 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
       "reads": [
@@ -1003,8 +1005,10 @@
       "acceptance": [
         "the file passes."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; 20 rules + fires tests; parent typecheck+test green"
+      ]
     },
     {
       "id": "6.3",
@@ -1016,8 +1020,8 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -1058,8 +1062,10 @@
       "acceptance": [
         "`tests/rules/evaluate.test.ts` passes with: `CASES.D` -> `evaluateRules` contains `pension_timing_gap` and `retirement_gap`; bump with `['retirement']` turns rule 20 low->medium and leaves rule 9 high; `selectActionPlan` on five fired rules `[#4 medium, #1 high, #15 low, #9 high, #12 medium]` returns `[1, 9, 4]`; two calls with the same input deep-equal."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; 20 rules + fires tests; parent typecheck+test green"
+      ]
     },
     {
       "id": "7.1",
