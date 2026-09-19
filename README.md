@@ -19,10 +19,10 @@ After the checkup, the baseline snapshot is stored so the user can trigger a sim
 
 | Capability | What it does |
 | --- | --- |
-| `conversational-interview` | Single-question-at-a-time Telegram interview that collects demographics, income, expenditure, debt, assets and multi-country pensions, asks empathetic clarifying follow-ups, and extracts a strongly-typed profile. |
-| `calculation-engine` | Pure TypeScript computation of Emergency Runway, Debt Exposure, Retirement Visibility, Asset Concentration and Cross-Border Complexity, plus threshold mapping to Green / Amber / Red and ranking of the top 3 blind spots. |
-| `advice-guardrail` | Independent classifier on every outbound message; regenerates educational text whenever a draft looks like regulated advice. |
-| `baseline-comparison` | Persists dated snapshots of profile + scorecard and renders a then-versus-now comparison on re-check. |
+| `conversational-interview` | Single-question-at-a-time Telegram interview that fixes a base currency, collects demographics, income, expenditure, debt, assets and multi-country pensions, asks empathetic clarifying follow-ups, redacts sensitive identifiers before any model call, and extracts a strongly-typed profile. |
+| `calculation-engine` | Pure TypeScript computation of Emergency Runway, Debt Exposure, Retirement Visibility, Asset Concentration and Cross-Border Complexity on base-currency amounts, threshold mapping to Green / Amber / Red / Unknown, and deterministic ranking of the top 3 blind spots. |
+| `advice-guardrail` | Independent classifier on every model-generated outbound message; regenerates educational text (max 2 attempts, then a pre-approved fallback) and logs every compliance trigger. |
+| `baseline-comparison` | Persists dated snapshots of profile + scorecard, renders a then-versus-now comparison on `/revisit`, and erases all user data on `/forget`. |
 
 Behaviour contracts for each capability live in [`openspec/changes/init-blindspot-agent/specs/`](openspec/changes/init-blindspot-agent/specs/).
 
@@ -42,13 +42,15 @@ Under EU regulations, personalized retail investment advice is a regulated activ
   3. **Deterministic Scoring**: The model never decides scorecard colors or calculates metrics.
 
 ### 2. Strict Separation of Facts and Explanation
-- **Plain Code Calculation Engine**: Mathematical indicators (Emergency Runway, Debt Exposure, Retirement Visibility, Asset Concentration, Cross-Border Complexity) and their Green / Amber / Red thresholds are computed purely in deterministic TypeScript functions.
+- **Plain Code Calculation Engine**: Mathematical indicators (Emergency Runway, Debt Exposure, Retirement Visibility, Asset Concentration, Cross-Border Complexity) and their Green / Amber / Red / Unknown thresholds are computed purely in deterministic TypeScript functions, with default boundaries pinned in the [calculation-engine spec](openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md).
+- **Base Currency First**: All amounts are normalised to the user's declared base currency via a bundled static rate table before any indicator is computed.
 - **Natural Language Role**: The LLM writes plain-language explanations around results it did not calculate and flags it did not decide.
 
 ### 3. Data Minimization & Privacy
 - **Zero Credentials**: Never collects or stores bank credentials, account numbers, card details, tax IDs, or passport numbers.
 - **Approximations Only**: All evaluations operate on ranges, rounded numbers, and self-reported estimates.
-- **Sensitive Input Handling**: If a user volunteers an identification number or credential, the tokens are stripped and the user is reminded that only ranges and estimates are needed.
+- **Sensitive Input Handling**: A deterministic (non-LLM) filter redacts IBANs, card numbers, passport and tax identifiers before any user text reaches a model provider, and reminds the user that only ranges and estimates are needed.
+- **Erasure on Request**: `/forget` deletes every snapshot, session record, and compliance log entry for the requesting Telegram user.
 
 ---
 
@@ -57,7 +59,8 @@ Under EU regulations, personalized retail investment advice is a regulated activ
 | Command | Behaviour |
 | --- | --- |
 | `/start` | Opens the assessment with the mandatory education-only disclosure, then asks the first question. |
-| `/revisit` | Runs the simulated six-month re-check and reports indicator deltas against the stored baseline. |
+| `/revisit` | Re-asks only the mutable numeric fields, then reports indicator deltas against the stored baseline as a simulated six-month follow-up. |
+| `/forget` | Deletes all stored data for the requesting user and confirms in chat. |
 
 ---
 
