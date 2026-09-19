@@ -18,6 +18,7 @@ export interface InterviewState {
   retries: number;
   mode: 'assess' | 'revisit';
   prefill?: Answers;
+  order?: number[];
   complete: boolean;
   awaitingNudgeChoice?: boolean;
 }
@@ -40,12 +41,24 @@ function isAssumptionId(id: FieldId): id is keyof Assumptions {
   return ASSUMPTION_IDS.has(id);
 }
 
-function skipHidden(s: InterviewState): InterviewState {
+function fieldCount(s: InterviewState): number {
+  return s.order ? s.order.length : FIELDS.length;
+}
+
+function fieldAt(s: InterviewState, i: number): FieldDef | undefined {
+  const index = s.order ? s.order[i] : i;
+  return index === undefined ? undefined : FIELDS[index];
+}
+
+export function advanceToVisible(s: InterviewState): InterviewState {
   const answers = { ...s.answers } as Record<string, unknown>;
   let i = s.fieldIndex;
-  while (i < FIELDS.length) {
-    const f = FIELDS[i]!;
-    if (!f.showIf || f.showIf(answers as Partial<Answers>)) break;
+  const n = fieldCount(s);
+  while (i < n) {
+    const f = fieldAt(s, i)!;
+    const view =
+      s.mode === 'revisit' && s.prefill ? { ...s.prefill, ...answers } : answers;
+    if (!f.showIf || f.showIf(view as Partial<Answers>)) break;
     answers[f.id] = 'n/a';
     i += 1;
   }
@@ -53,7 +66,7 @@ function skipHidden(s: InterviewState): InterviewState {
     ...s,
     answers: answers as Partial<Answers>,
     fieldIndex: i,
-    complete: i >= FIELDS.length,
+    complete: i >= n,
   };
 }
 
@@ -62,7 +75,7 @@ function inPensionPhase(s: InterviewState): boolean {
 }
 
 export function createState(userId: string): InterviewState {
-  return skipHidden({
+  return advanceToVisible({
     userId,
     answers: {},
     assumptions: { ...DEFAULT_ASSUMPTIONS },
@@ -74,8 +87,8 @@ export function createState(userId: string): InterviewState {
 }
 
 export function currentField(s: InterviewState): FieldDef | null {
-  if (s.complete || s.fieldIndex >= FIELDS.length) return null;
-  const f = FIELDS[s.fieldIndex]!;
+  if (s.complete || s.fieldIndex >= fieldCount(s)) return null;
+  const f = fieldAt(s, s.fieldIndex)!;
   if (f.id === 'beneficiaries_named' && inPensionPhase(s)) {
     if (s.pensionFieldIndex === ANOTHER_PENSION_INDEX)
       return ANOTHER_PENSION_FIELD;
@@ -84,9 +97,32 @@ export function currentField(s: InterviewState): FieldDef | null {
   return f;
 }
 
-export function applyAnswer(s: InterviewState, value: unknown): InterviewState {
+function resolveSame(
+  s: InterviewState,
+  f: FieldDef,
+  value: unknown,
+): unknown {
+  if (value !== 'same' || s.mode !== 'revisit' || !s.prefill) return value;
+  const rows = s.prefill.pensions ?? [];
+  if (f.id === 'pensions') {
+    return (s.answers.pensions?.length ?? 0) < rows.length ? 'yes' : 'no';
+  }
+  if (f.repeat === 'pensions') {
+    const row = rows[s.answers.pensions?.length ?? 0];
+    if (!row || !(f.id in row)) return value;
+    return (row as unknown as Record<string, unknown>)[f.id];
+  }
+  if (!(f.id in s.prefill)) return value;
+  return (s.prefill as unknown as Record<string, unknown>)[f.id];
+}
+
+export function applyAnswer(
+  s: InterviewState,
+  rawValue: unknown,
+): InterviewState {
   const f = currentField(s);
   if (!f) return s;
+  const value = resolveSame(s, f, rawValue);
 
   if (f.id === 'pensions') {
     if (value === 'yes')
@@ -121,7 +157,7 @@ export function applyAnswer(s: InterviewState, value: unknown): InterviewState {
       typeof value === 'number'
         ? { ...s.assumptions, [f.id]: value }
         : s.assumptions;
-    return skipHidden({
+    return advanceToVisible({
       ...s,
       assumptions,
       fieldIndex: s.fieldIndex + 1,
@@ -130,7 +166,7 @@ export function applyAnswer(s: InterviewState, value: unknown): InterviewState {
   }
 
   const answers = { ...s.answers, [f.id]: value } as Partial<Answers>;
-  return skipHidden({
+  return advanceToVisible({
     ...s,
     answers,
     fieldIndex: s.fieldIndex + 1,
