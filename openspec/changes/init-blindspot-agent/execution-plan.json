@@ -1384,7 +1384,7 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
@@ -1431,8 +1431,10 @@
       "acceptance": [
         "`tests/llm/prompts.test.ts` passes asserting each prompt contains its key phrases (`\"not financial advice\"`, `\"correction\"`, `\"off_topic\"`, `\"ALLOW\"`, `\"BLOCK\"`, `\"transfer\"`)."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "9.2",
