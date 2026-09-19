@@ -1,5 +1,28 @@
 schema: spec-driven
 
+context: |
+  Financial Blindspot Detector: a Telegram agent that runs a ~10-minute
+  conversational financial checkup for internationally mobile professionals
+  and expats, then returns a deterministic Green/Amber/Red scorecard with the
+  user's top 3 blind spots.
+
+  Tech stack: TypeScript / Node.js, @mastra/core (agent, memory, Telegram
+  channel), openai SDK against Nebius Token Factory
+  (https://api.tokenfactory.nebius.com/v1/), zod, local SQLite / in-memory
+  snapshot store, Vitest, Galtea for adversarial evaluation.
+
+  Models: deepseek-ai/DeepSeek-V4.1-Flash for the interview and extraction,
+  nvidia/Nemotron-3_5-Lightning for the outbound guardrail classifier.
+
+  Invariants every artifact must respect:
+  - Education only, never regulated financial advice (no product, ticker, or
+    provider recommendations); enforced by system prompt, deterministic
+    scoring, and an independent outbound classifier.
+  - All indicators and R/A/G thresholds are computed in pure TypeScript; the
+    LLM never calculates numbers or picks flag colors.
+  - Data minimization: ranges and estimates only, never credentials, account
+    numbers, tax IDs, or passport numbers.
+
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
