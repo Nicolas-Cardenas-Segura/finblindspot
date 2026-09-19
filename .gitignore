@@ -4,3 +4,6 @@ dist
 *.sqlite
 data/
 coverage
+eval/results/*.json
+!eval/results/baseline.json
+!eval/results/after.json

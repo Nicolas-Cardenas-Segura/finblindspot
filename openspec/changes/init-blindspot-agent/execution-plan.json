@@ -2288,8 +2288,8 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
       "reads": [
@@ -2326,8 +2326,10 @@
       "acceptance": [
         "`npm run build` (add script `tsc`) exits 0 and `node dist/index.js` with a missing `TELEGRAM_BOT_TOKEN` exits non-zero printing the key name."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "src/index.ts by parent; npm run build exits 0; node dist/index.js without TELEGRAM_BOT_TOKEN exits 1 printing key name"
+      ]
     },
     {
       "id": "12.6",
@@ -2494,8 +2496,8 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
       "reads": [
@@ -2530,8 +2532,10 @@
       "acceptance": [
         "`npx tsx eval/galtea/run.ts --offline` (skips the Galtea upload) writes the JSON with `total >= 30`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; npx tsx eval/galtea/run.ts --offline wrote results JSON with total=33; Galtea upload stub pending 13.1"
+      ]
     },
     {
       "id": "13.4",
