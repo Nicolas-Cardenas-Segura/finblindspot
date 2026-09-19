@@ -1,0 +1,262 @@
+{
+  "thin_emergency_fund": {
+    "title": "Your safety net is thin",
+    "headline": "You have less than three months of spending in cash.",
+    "why": "Emergency money is what stops a bad month turning into a bad decade. Without it, a job loss, a medical bill or a broken boiler gets paid for with a credit card at 20%, or by selling investments at whatever price the market happens to offer that week. Everything else in your plan sits on top of this, which is why it is first.",
+    "learn": [
+      "Work out your real monthly essentials, not your total spending. Rent, food, utilities, insurance, minimum debt payments. That figure, times three to six, is the target.",
+      "Understand where cash can sit so it keeps some value against inflation but can still be reached within days.",
+      "Find out what your bank deposit protection scheme covers in the country where the money is held, and per what."
+    ],
+    "ask": "\"Given my job security and my dependants, how many months of essential spending should I hold in cash before I put money anywhere else?\"",
+    "severity": "high",
+    "topic": "savings"
+  },
+  "negative_surplus": {
+    "title": "You are spending more than you earn",
+    "headline": "What you told us you spend is more than what you told us you earn.",
+    "why": "A negative monthly gap is filled from somewhere, usually savings or borrowing, and both work in the wrong direction. No investment return fixes a structural deficit, because the gap compounds faster than the portfolio. It is also the one number on this whole assessment you can change this month rather than this decade.",
+    "learn": [
+      "Check the figures first. Mixing an annual bonus into a monthly income line, or the reverse, is the most common cause of this showing up wrongly.",
+      "Separate fixed commitments from discretionary spending, so you know how much is genuinely movable.",
+      "Understand which of your costs are contracted for a period and when each one next comes up for renewal."
+    ],
+    "ask": "\"My outgoings exceed my income. Which commitments should I look at first, and what would you want to see before I take on anything new?\"",
+    "severity": "high",
+    "topic": "savings"
+  },
+  "family_unprotected": {
+    "title": "People depend on you and there is no cover",
+    "headline": "You have people who depend on your income, and no life cover recorded.",
+    "why": "Everything else in this assessment assumes you keep earning. Life cover is the only part that works if you do not. For anyone with dependants and a mortgage it is usually the cheapest large risk to deal with, and the one most often left until later. If you answered \"I don't know\", that is worth resolving on its own: cover you cannot find is cover your family cannot claim.",
+    "learn": [
+      "Check what you already have through your employer, and whether it survives you leaving that job. Most does not.",
+      "Understand the difference between cover that runs for a fixed term and cover that lasts for life, and what each is normally used for.",
+      "Work out roughly what your household would need: outstanding mortgage, plus the years of income that would need replacing."
+    ],
+    "ask": "\"If I died tomorrow, what would my household actually receive, and what is the gap between that and what they would need?\"",
+    "severity": "high",
+    "topic": "protection"
+  },
+  "no_income_safety_net": {
+    "title": "No cover if you cannot work",
+    "headline": "Nothing recorded that would replace your income if illness stopped you working.",
+    "why": "Long-term illness is statistically more likely during your working life than death, and financially it can be harder, because the costs continue while the income stops. State support varies enormously by country and is often far below what people assume. Self-employed and cross-border workers tend to have the least of it.",
+    "learn": [
+      "Find out what your employer pays if you are signed off sick, at what percentage of salary, and for how many months.",
+      "Find out what the state in your country of residence pays, and what contribution record it requires.",
+      "Understand the difference between cover that pays a lump sum on a listed diagnosis and cover that pays a monthly income for as long as you cannot work."
+    ],
+    "ask": "\"If I could not work for two years, what would I receive from my employer and from the state, and for how long?\"",
+    "severity": "medium",
+    "topic": "protection"
+  },
+  "no_health_cover": {
+    "title": "No health cover recorded",
+    "headline": "No health cover recorded where you live.",
+    "why": "This one depends entirely on where you are, which is why the app asks rather than assumes. In some countries residence gives you comprehensive care and this is a non-issue. In others, or on certain visa types, a single serious episode is the largest bill a household will ever face. If you are living outside the country you pay into, check rather than assume.",
+    "learn": [
+      "Confirm what your residence status entitles you to in the public system where you actually live, not where you are from.",
+      "If you have private cover, check what is excluded, what the annual limit is, and whether it covers treatment outside that country.",
+      "Check whether your cover follows you or ends when you change job or move."
+    ],
+    "ask": "\"On my residence status, what am I entitled to in the public system here, and what would I have to pay for myself?\"",
+    "severity": "high",
+    "topic": "protection"
+  },
+  "succession_gap": {
+    "title": "Your succession arrangements may be worth reviewing",
+    "headline": "Your will, or the lack of one, may not match where you now live.",
+    "why": "Inheritance is governed by national law, and those laws differ sharply. Several countries apply forced heirship, where a fixed share must go to certain relatives regardless of what a will says. A will written in one country may still be valid but produce an outcome you did not intend in another. Without a will, the local default rules decide, and they rarely match how modern households are actually arranged.",
+    "learn": [
+      "Find out which country's succession law applies to you, and whether you have any right to elect a different one.",
+      "Understand that assets in multiple countries can be subject to multiple regimes, and that one will does not always cover all of them.",
+      "Check whether anything major has changed since the will was written: a move, a marriage, a separation, a child, a property."
+    ],
+    "ask": "\"Which country's succession rules apply to my estate, and does my current will actually achieve what I intend under those rules?\"",
+    "severity": "medium",
+    "topic": "succession"
+  },
+  "education_unfunded": {
+    "title": "Education costs are not funded",
+    "headline": "You have dependants and no confirmed plan for education costs.",
+    "why": "Education is the one large expense with a date attached, which makes it both easier to plan for and harder to postpone. It also tends to land in the same years as peak retirement saving, so unfunded, it quietly takes the money that was meant for later. Education costs have historically risen faster than general inflation, so a figure that looks adequate today usually is not.",
+    "learn": [
+      "Get a realistic number for the route you actually expect: local state, private, or university in another country, including living costs.",
+      "Work out the years remaining. Under five years is a very different problem from fifteen, and is generally treated differently.",
+      "Understand what fees look like for international or non-resident students, which are often several times the domestic rate."
+    ],
+    "ask": "\"Given the education route we expect and the years we have left, how much would we need to set aside each month, and how should that money be held?\"",
+    "severity": "medium",
+    "topic": "education"
+  },
+  "pension_visibility": {
+    "title": "You cannot see all your pensions",
+    "headline": "At least one pension has no value recorded, so your projection is a minimum.",
+    "why": "For most people pensions are the largest single asset they own, and often the one they can describe the least. A pot you cannot value cannot be counted, so the projection above is lower than your real position, and you are planning against a number you know is incomplete. People who have moved countries or changed employers often have money sitting in schemes that have lost track of them entirely.",
+    "learn": [
+      "List every employer you have had and check whether each one enrolled you in a scheme. A payslip from the time will usually show it.",
+      "Find out whether the country you worked in runs a pension tracing or dormant-accounts service, and use it.",
+      "For each pot, get three things: the current value, what it is invested in, and the age it can first be taken."
+    ],
+    "ask": "\"Help me build a complete list of my pensions across every country I have worked in, and tell me what each one is currently worth.\"",
+    "severity": "high",
+    "topic": "retirement"
+  },
+  "pension_timing_gap": {
+    "title": "Your pension starts after you plan to stop",
+    "headline": "You plan to retire at {retire_age}, and one of your pensions does not begin until {pension_start_age}.",
+    "why": "Those in-between years have to be paid for from your own savings, with no pension arriving. It is the single most underestimated part of early retirement, and the reason people who retire a few years early run into trouble later rather than immediately. Because this projection stops at your chosen retirement age, the income arriving later is not counted at all, which makes the figure above deliberately conservative. It is your position at {retire_age}, not your position for the rest of your life.",
+    "learn": [
+      "Confirm the exact age each pension can first be drawn. State pension ages have been rising in many countries and may not be what you remember.",
+      "Work out the cost of the bridge: the years between stopping and the pension starting, times your expected annual spending.",
+      "Understand whether taking a pension earlier than its normal age is possible where you are, and what permanent reduction applies if it is."
+    ],
+    "ask": "\"I want to stop at {retire_age} and my pensions start later. How would I fund those years, and what would it cost me to take anything early?\"",
+    "severity": "high",
+    "topic": "retirement"
+  },
+  "scattered_pensions": {
+    "title": "Your pensions are spread across countries",
+    "headline": "You have pensions in more than one country.",
+    "why": "This is not a problem in itself, it is an admin and visibility risk. Each scheme has its own rules, its own claim process, its own start age and its own currency, and none of them will contact each other on your behalf. Pots go missing when people move, and schemes rarely chase a member across a border. The currency point matters too: a pension paid in one currency while you spend in another leaves your retirement income moving with the exchange rate.",
+    "learn": [
+      "Keep one list: scheme, country, reference number, current value, start age, and how it is claimed.",
+      "Check what each scheme needs from you to pay out, and whether it can pay to an account in another country.",
+      "Find out whether there is a social security agreement between the countries involved, and whether contributions in one count towards entitlement in another."
+    ],
+    "ask": "\"I have pensions in several countries. What do I need to do in each one, and where will I be taxed on them when they pay out?\"",
+    "severity": "medium",
+    "topic": "cross_border"
+  },
+  "beneficiary_gap": {
+    "title": "Nobody is named to inherit",
+    "headline": "No beneficiaries recorded on your pensions and life cover.",
+    "why": "Pensions and life policies often pass outside the will, under the scheme's own rules. That means an out-of-date nomination, or none at all, can send money somewhere you did not intend, and a will cannot always override it. It is one of the few gaps that costs nothing to close and can take ten minutes. A nomination made before a separation, or before a child, is the usual problem.",
+    "learn": [
+      "Check each pension and each policy separately. They are nominated individually, not as a group.",
+      "Understand whether your scheme treats a nomination as binding or as an expression of wishes, because the difference matters.",
+      "Set a habit of reviewing nominations whenever your household changes."
+    ],
+    "ask": "\"Who is currently nominated on each of my pensions and policies, and does that match what my will says?\"",
+    "severity": "medium",
+    "topic": "succession"
+  },
+  "fees_unknown": {
+    "title": "You do not know what you are paying in fees",
+    "headline": "You told us you are not sure what your investments and pensions cost you each year.",
+    "why": "Fees are the only part of investment returns that is known in advance, and they compound in exactly the same way as growth, just against you. On a pot growing at 5% over 25 years, the difference between paying 0.5% a year and 2% a year is roughly a third of the final value. Charges are usually taken from inside the fund, so they never appear as a payment you notice.",
+    "learn": [
+      "Look for the total yearly cost, which usually means adding the platform or scheme charge to the fund charge, and any adviser fee.",
+      "Understand the difference between a one-off charge on money going in and an annual charge on the whole balance. The annual one is what compounds.",
+      "Try the same projection at your current cost and at one percentage point lower, so the effect is a number and not a principle."
+    ],
+    "ask": "\"What is the total annual cost of each of my investments and pensions, all charges included, as a percentage and in euros?\"",
+    "severity": "medium",
+    "topic": "investments"
+  },
+  "expensive_debt": {
+    "title": "Expensive or unmeasured debt",
+    "headline": "You have debt costing more than a portfolio is likely to earn, or a rate you are not sure of.",
+    "why": "This projection assumes investments grow at 5% a year and that is not guaranteed. Interest on a card at 20% is guaranteed. Money used to clear it returns that rate, with certainty and no market risk, which is a better deal than almost anything else available. If you answered \"I don't know\" for the rate, that is worth resolving first, because the rate determines whether this is urgent or routine.",
+    "learn": [
+      "List every debt with its rate, so you can see them ranked rather than as one lump.",
+      "Understand which rates are fixed and which can be changed by the lender with notice.",
+      "Check for early repayment penalties before clearing anything, particularly on fixed-term loans."
+    ],
+    "ask": "\"Given these rates, should I be repaying debt before investing more, and in what order?\"",
+    "severity": "high",
+    "topic": "debt"
+  },
+  "debt_into_retirement": {
+    "title": "Debt is still running in retirement",
+    "headline": "You expect to still owe money when you stop working.",
+    "why": "Repayments do not stop when the salary does. Debt carried into retirement has to be serviced from the same pot that funds your living costs, so it reduces your income twice over: once through the repayments, and again through the capital you had to keep back. It can also limit your choices, because it is harder to borrow or refinance without employment income.",
+    "learn": [
+      "Check the final payment date on each loan and mortgage, and compare it to your intended retirement age.",
+      "Work out what clearing the balance before you stop would require each month, and whether that is realistic.",
+      "Understand what happens to any interest-only balance at the end of its term."
+    ],
+    "ask": "\"I expect to still owe this at retirement. Should I be clearing it first, and what does it do to the income I can take?\"",
+    "severity": "medium",
+    "topic": "debt"
+  },
+  "cash_concentration": {
+    "title": "A large share of your money is in cash",
+    "headline": "More than a third of what you reported is sitting in cash.",
+    "why": "Cash cannot fall in nominal terms, which is exactly why it feels safe, and it loses value quietly against inflation instead. At 3% inflation, money in an account paying 1% loses around a fifth of its purchasing power over ten years without the balance ever going down. Beyond your emergency fund and anything needed within a few years, holding it in cash is a decision with a cost, even though it does not look like one.",
+    "learn": [
+      "Split the cash by purpose: emergency fund, money needed within three years, and the rest. Only the last part is really in question.",
+      "Compare the rate you are actually receiving with current inflation, rather than with zero.",
+      "Understand why money needed soon is normally kept in cash regardless of the inflation cost. Timing, not return, is the reason."
+    ],
+    "ask": "\"How much cash should I hold given my circumstances, and what should the rest be doing?\"",
+    "severity": "low",
+    "topic": "investments"
+  },
+  "property_concentration": {
+    "title": "Most of your wealth is in property",
+    "headline": "Most of your net worth is tied up in property.",
+    "why": "Property has served a lot of people well, and this is an observation about concentration rather than a criticism of the asset. Three things follow from it: you cannot sell a small part of a house when you need money, the value moves with one local market rather than many, and it costs money to hold through maintenance, tax and periods with no tenant. If the plan is to fund retirement by selling, the sale has to happen at a time that is not of your choosing.",
+    "learn": [
+      "Work out your net position after mortgage, selling costs and any tax on gain, rather than the headline value.",
+      "Be honest about which properties you would actually sell, and which you would not.",
+      "Understand what property costs you annually to hold, as a percentage of its value."
+    ],
+    "ask": "\"If most of my wealth is in property, what would I actually live on, and how quickly could I access it if I needed to?\"",
+    "severity": "low",
+    "topic": "property"
+  },
+  "currency_exposure": {
+    "title": "Your money and your life are in different currencies",
+    "headline": "You hold money in one currency and expect to spend it in another.",
+    "why": "Exchange rates move by 10% to 20% over a few years without anything unusual happening. If your savings are in one currency and your retirement will be spent in another, your real income moves with the rate, and you have no control over it. It is a risk that pays you nothing for taking it, which makes it different from investment risk. It is also the risk people who move countries notice last.",
+    "learn": [
+      "List your assets by the currency they are actually held in, not the currency of the platform you see them on.",
+      "Do the same for the income you expect in retirement, then compare both to the currency you will spend in.",
+      "Understand the difference between an occasional conversion cost and a permanent structural mismatch. The second is the one that matters."
+    ],
+    "ask": "\"My assets are in one currency and I expect to retire in another. How exposed am I, and what are the normal ways of reducing that?\"",
+    "severity": "medium",
+    "topic": "cross_border"
+  },
+  "single_point_of_failure": {
+    "title": "Only one of you knows where everything is",
+    "headline": "You handle the money, and your partner does not know where it all is.",
+    "why": "This is the most common gap in the whole assessment and the cheapest to close. If something happens to you, your partner deals with the worst weeks of their life while trying to find accounts they have never seen, with institutions that will not talk to them without paperwork they do not know exists. It is not about who makes the decisions. It is about whether the information survives one person being unavailable.",
+    "learn": [
+      "Write one page: every institution, what is held there, and roughly how to reach it. Not passwords, just the map.",
+      "Make sure at least one other person knows that page exists and where to find it.",
+      "Understand what your bank or scheme requires from a partner in that situation, because it is usually more than people expect."
+    ],
+    "ask": "\"If I were not here, what would my partner need in order to access and manage all of this, and what should we put in place now?\"",
+    "severity": "medium",
+    "topic": "succession"
+  },
+  "retirement_gap": {
+    "title": "There is a gap between the plan and the target",
+    "headline": "On today's assumptions, your projection falls short of the income you asked for.",
+    "why": "A gap found now is a small monthly number. The same gap found ten years later is a large one, because the time left to fix it is what does most of the work. There are four levers and only four: save more, retire later, want less, or take different investment risk. Seeing which one moves the number most is more useful than the shortfall itself. If your result is marked a minimum estimate, the gap may be smaller than shown, and filling in what is missing is the first step rather than saving more.",
+    "learn": [
+      "Try each lever one at a time in the assumptions panel and watch which one shifts the result most.",
+      "Understand what the withdrawal rate assumption means and why 3%, 4% and 5% produce such different answers.",
+      "Check whether the shortfall is real or an artefact of missing information, before changing any behaviour."
+    ],
+    "ask": "\"Are the assumptions behind this projection reasonable for my situation, and which change would close the gap most efficiently?\"",
+    "severity": "high",
+    "topic": "retirement"
+  },
+  "lifestyle_reality_check": {
+    "title": "Is the lower retirement income deliberate?",
+    "headline": "The income you asked for is well below what you spend today. Is that intentional?",
+    "why": "Often it is entirely deliberate: the mortgage will be gone, the children independent, the commute finished. Sometimes it is a figure typed quickly, and it makes the projection look far healthier than it should. The app cannot tell the difference, which is why it asks rather than flags. Worth knowing that some costs rise in retirement even as others fall, particularly healthcare, travel, and the time available to spend money in.",
+    "learn": [
+      "Take today's spending and remove what genuinely ends: mortgage, commuting, costs of dependants, pension contributions.",
+      "Add what starts or grows: health cover, travel, help around the home later on.",
+      "Remember every figure here is in today's money, so you do not need to add inflation yourself. The engine does that."
+    ],
+    "ask": "\"Is this a realistic income for the retirement I am describing, in the country I plan to live in?\"",
+    "severity": "low",
+    "topic": "retirement"
+  }
+}
