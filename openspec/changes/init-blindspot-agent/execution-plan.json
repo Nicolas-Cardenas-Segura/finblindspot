@@ -2236,8 +2236,8 @@
       ],
       "risk": "medium",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -2271,8 +2271,10 @@
       "acceptance": [
         "`npm run typecheck` exits 0."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green (195)"
+      ]
     },
     {
       "id": "12.5",
