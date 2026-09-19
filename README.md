@@ -1,7 +1,7 @@
 # Financial Blindspot Detector
 
 > **Status: Work in Progress (WIP)**  
-> This project is currently in active development for HackBarna / AI Summit Barcelona 2026. Specifications, architecture decisions, and implementation tasks are tracked in [`openspec/changes/init-blindspot-agent/`](openspec/changes/init-blindspot-agent/).
+> This project is currently in active development for HackBarna / AI Summit Barcelona 2026. The product is defined in [`finance-blind-spot-v1-spec.html`](finance-blind-spot-v1-spec.html) (v1 master build document — questionnaire, engine, twenty blind-spot rules, content library, results, re-assessment, test cases). Architecture decisions and implementation tasks that deliver it over Telegram are tracked in [`openspec/changes/init-blindspot-agent/`](openspec/changes/init-blindspot-agent/).
 
 ---
 
@@ -9,9 +9,9 @@
 
 Most financial apps show you what you have. **Financial Blindspot** shows you what you are missing before it becomes expensive.
 
-Designed specifically for internationally mobile professionals and expats—who face split pensions, multi-currency assets, and cross-border tax complexity—the system conducts a 10-minute conversational checkup via Telegram, deterministically evaluates key financial health indicators, and produces an objective scorecard detailing their top 3 blind spots.
+Designed for internationally mobile professionals and expats—who face split pensions, cross-border succession and protection gaps—the bot asks around forty plain questions over Telegram, runs a deterministic retirement projection, checks twenty blind-spot rules, and returns three things: an honest picture of where they stand, the gaps they had not noticed, and a saved position they can come back to.
 
-After the checkup, the baseline snapshot is stored so the user can trigger a simulated "six months later" re-check and see a then-versus-now delta on every indicator.
+The re-assessment is the product: every assessment is stored immutably, and `/revisit` prefills the last answers, asks "still right?", surfaces the things they didn't know last time first, and shows what moved — recomputed under one set of assumptions so only real change counts.
 
 ---
 
@@ -19,10 +19,10 @@ After the checkup, the baseline snapshot is stored so the user can trigger a sim
 
 | Capability | What it does |
 | --- | --- |
-| `conversational-interview` | Single-question-at-a-time Telegram interview that fixes a base currency, collects demographics, income, expenditure, debt, assets and multi-country pensions, asks empathetic clarifying follow-ups, redacts sensitive identifiers before any model call, and extracts a strongly-typed profile. |
-| `calculation-engine` | Pure TypeScript computation of Emergency Runway, Debt Exposure, Retirement Visibility, Asset Concentration and Cross-Border Complexity on base-currency amounts, threshold mapping to Green / Amber / Red / Unknown, and deterministic ranking of the top 3 blind spots. |
-| `advice-guardrail` | Independent classifier on every model-generated outbound message; regenerates educational text (max 2 attempts, then a pre-approved fallback) and logs every compliance trigger. |
-| `baseline-comparison` | Persists dated snapshots of profile + scorecard, renders a then-versus-now comparison on `/revisit`, and erases all user data on `/forget`. |
+| `conversational-interview` | Consent first, then the v1 questionnaire (sections A–H, ~40 field IDs) one message at a time over Telegram; every money and yes/no field offers "I don't know" (stored as `null`, never `0`); the model only maps a free-text reply onto the current field; sensitive identifiers are redacted before any model call. |
+| `calculation-engine` | Pure TypeScript: derived values, the v1 §5 retirement projection (`required_pot`, `projected_assets`, `position`, today's-money and 3/4/5% sensitivity, minimum-estimate flag), input validation, the twenty v1 §6 blind-spot rules with severity bump and a deterministic top-three action plan. Reproduces v1 test cases A–D exactly. |
+| `advice-guardrail` | Blind-spot copy comes from a static content library (v1 §7); the model may rephrase only "why it matters" around the user's numbers. An independent classifier plus an invented-number check gate every model-generated message (max 2 attempts, then the library copy), logging every compliance trigger. |
+| `baseline-comparison` | Immutable assessment records (answers, assumptions, results stored separately); `/revisit` prefills from the last one, asks previous unknowns first, recomputes both runs under current assumptions and renders Then / Now / Change with closed, new and still-open blind spots and `unknowns_resolved`; `/forget` erases all user data. |
 
 Behaviour contracts for each capability live in [`openspec/changes/init-blindspot-agent/specs/`](openspec/changes/init-blindspot-agent/specs/).
 
@@ -34,23 +34,24 @@ These architectural and regulatory invariants are strictly enforced across the c
 
 ### 1. Education, Never Regulated Advice
 Under EU regulations, personalized retail investment advice is a regulated activity. This system provides financial education and diagnostic awareness only.
-- **Allowed:** *"Your emergency reserve covers ~2.7 months of reported expenditure. Here is why that benchmark matters."*
-- **Strictly Prohibited:** *"You should buy this ETF."* / *"Move cash to bonds."* / *"Invest with provider X."*
-- **Enforcement:** Enforced in code through a three-layer defense:
-  1. **System Prompt Boundary**: Explicit role definition and mandatory opening disclosure to the user.
-  2. **Outbound Guardrail Classifier**: An independent fast model (`Nemotron-3_5-Lightning`) checks every outbound message and blocks any recommendation-shaped text before delivery.
-  3. **Deterministic Scoring**: The model never decides scorecard colors or calculates metrics.
+- **The AI may:** ask follow-up questions, clarify an answer, point out missing information, explain a calculation or a concept, explain why something is a blind spot, suggest questions to ask a professional.
+- **The AI may not:** recommend an investment, product or pension transfer, invent a missing value, present an assumption as a guarantee, or state that a projection will happen.
+- **Enforcement:** a three-layer defense:
+  1. **System Prompt Boundary**: the may / may-not list above, verbatim, plus the mandatory opening disclosure.
+  2. **Deterministic numbers and copy**: every figure comes from the engine and every blind-spot text from the content library; the model has nothing of its own to recommend from.
+  3. **Outbound Guardrail**: an independent fast model (`Nemotron-3_5-Lightning`) and a deterministic invented-number check gate every model-generated message before delivery.
 
-### 2. Strict Separation of Facts and Explanation
-- **Plain Code Calculation Engine**: Mathematical indicators (Emergency Runway, Debt Exposure, Retirement Visibility, Asset Concentration, Cross-Border Complexity) and their Green / Amber / Red / Unknown thresholds are computed purely in deterministic TypeScript functions, with default boundaries pinned in the [calculation-engine spec](openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md).
-- **Base Currency First**: All amounts are normalised to the user's declared base currency via a bundled static rate table before any indicator is computed.
-- **Natural Language Role**: The LLM writes plain-language explanations around results it did not calculate and flags it did not decide.
+### 2. The Agent Sits Either Side of the Maths, Never Inside It
+- **Field IDs are the contract**: every question maps to one ID; the engine only ever reads IDs.
+- **Plain Code Engine**: the projection formulas, validation, the twenty rules, severities, topic bump and top-three selection are pure TypeScript, specified in the [calculation-engine spec](openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md) and pinned by v1 test cases A–D.
+- **"I don't know" is an answer, not a zero**: stored as `null`, left out of the maths, listed as missing, and it fires its own blind spot. Not knowing is the finding.
+- **Single currency in v1**: `base_currency` is EUR / GBP / USD; multi-currency conversion is deferred to v2 per the v1 document.
 
 ### 3. Data Minimization & Privacy
 - **Zero Credentials**: Never collects or stores bank credentials, account numbers, card details, tax IDs, or passport numbers.
 - **Approximations Only**: All evaluations operate on ranges, rounded numbers, and self-reported estimates.
 - **Sensitive Input Handling**: A deterministic (non-LLM) filter redacts IBANs, card numbers, passport and tax identifiers before any user text reaches a model provider, and reminds the user that only ranges and estimates are needed.
-- **Erasure on Request**: `/forget` deletes every snapshot, session record, and compliance log entry for the requesting Telegram user.
+- **Erasure on Request**: `/forget` deletes every assessment, interview state, and compliance log entry for the requesting Telegram user.
 
 ---
 
@@ -58,8 +59,8 @@ Under EU regulations, personalized retail investment advice is a regulated activ
 
 | Command | Behaviour |
 | --- | --- |
-| `/start` | Opens the assessment with the mandatory education-only disclosure, then asks the first question. |
-| `/revisit` | Re-asks only the mutable numeric fields, then reports indicator deltas against the stored baseline as a simulated six-month follow-up. |
+| `/start` | Shows the education-only disclosure and no-credentials notice, records consent, then walks sections A–H one question at a time (resumes a draft if one exists). Ends with the results message and the three-item action plan. |
+| `/revisit` | Prefilled re-assessment: previous unknowns first, then "still right?" per field; creates a new immutable assessment and renders the Then / Now / Change progress view. |
 | `/forget` | Deletes all stored data for the requesting user and confirms in chat. |
 
 ---
@@ -74,18 +75,19 @@ This project follows [OpenSpec](https://github.com/openspec/openspec) to maintai
   - [`specs/`](openspec/changes/init-blindspot-agent/specs/) — requirements and scenarios per capability.
   - [`tasks.md`](openspec/changes/init-blindspot-agent/tasks.md) — the phased implementation checklist.
 
-Out of scope for the MVP: custom web/mobile UI, banking API or credential integrations, distributed database infrastructure, and a production scheduler for the six-month revisit.
+Out of scope for the MVP: custom web/mobile UI, banking API or credential integrations, distributed database infrastructure, scheduled push nudges, and everything the v1 document defers to v2 (post-retirement income periods, tax, multi-currency conversion, rental income, pension transfer analysis, …).
 
 ---
 
 ## 🛠️ Stack & Technology
 
-- **Agent & Channels**: [Mastra](https://mastra.ai) (orchestration, memory, Telegram channel adapter)
-- **Model Inference**: [Nebius Token Factory](https://tokenfactory.nebius.com) (`DeepSeek-V4.1-Flash` for interview extraction, `Nemotron-3_5-Lightning` for outbound guardrail)
-- **Evaluation & Adversarial Testing**: [Galtea](https://galtea.ai) (automated adversarial compliance and drift testing)
-- **Language & Runtime**: TypeScript / Node.js
-- **Storage**: Local SQLite / in-memory store for session state and baseline snapshots
-- **Testing**: Vitest (pure mathematical calculation & rule boundary unit tests)
+- **Agent & Channels**: [Mastra](https://mastra.ai) agent; Telegram via Mastra adapter or `grammy` long polling
+- **Model Inference**: [Nebius Token Factory](https://tokenfactory.nebius.com) (`DeepSeek-V4.1-Flash` for answer extraction and explanation, `Nemotron-3_5-Lightning` for the outbound guardrail)
+- **Evaluation & Adversarial Testing**: [Galtea](https://galtea.ai) (advice-boundary, invented-number and rule-not-fired probes)
+- **Language & Runtime**: TypeScript / Node.js, `zod`
+- **Storage**: Local SQLite (`better-sqlite3`) — immutable assessments, interview state, compliance triggers
+- **Content**: `content/blind_spots.json` — the v1 §7 copy, keyed by rule id, editable without a deploy
+- **Testing**: Vitest; v1 test cases A–D are the engine's acceptance suite
 
 ---
 
@@ -94,17 +96,19 @@ Out of scope for the MVP: custom web/mobile UI, banking API or credential integr
 Tracked in [`tasks.md`](openspec/changes/init-blindspot-agent/tasks.md) as small, single-file tasks (each names its target path, exported signature, and a mechanically checkable "Done when"); the project layout and shared types they reference are in [`design.md`](openspec/changes/init-blindspot-agent/design.md). No group is implemented yet.
 
 1. Project skeleton & external API spikes (Nebius model IDs, Telegram transport).
-2. Configuration tables (thresholds, FX rates).
-3. Profile schema & test fixtures.
+2. Configuration tables (assumption defaults/ranges, country→currency).
+3. Questionnaire schema, field definitions & test fixtures (v1 cases A–D).
 4. Privacy filter.
-5. Calculation engine (five indicators, ranking, scorecard).
-6. SQLite store (snapshots, compliance triggers, erasure).
-7. LLM prompts, extraction, guardrail.
-8. Interview state machine & revisit.
-9. Rendering & explanation.
-10. Agent, handlers, Telegram transport.
-11. Galtea adversarial evaluation (baseline, fix, re-run).
-12. Documentation & end-to-end rehearsal.
+5. Calculation engine (derived values, validation, projection).
+6. Blind-spot rules (twenty rules, topic bump, action plan).
+7. Assessment & comparison.
+8. SQLite store (immutable assessments, interview state, triggers, erasure).
+9. LLM prompts, extraction, guardrail (classifier + invented-number check).
+10. Content library, explanation, rendering.
+11. Interview state machine & revisit.
+12. Agent, handlers, Telegram transport.
+13. Galtea adversarial evaluation (baseline, fix, re-run).
+14. Documentation & end-to-end rehearsal.
 
 The task-granularity rules that produced this list live in [`openspec/config.yaml`](openspec/config.yaml) under `rules:` and are project-agnostic — copy that block into any OpenSpec repo whose tasks will be executed by small or fast models.
 

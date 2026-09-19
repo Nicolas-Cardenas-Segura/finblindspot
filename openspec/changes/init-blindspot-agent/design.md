@@ -4,77 +4,83 @@
 
 See [proposal.md](proposal.md) for background and motivation. The project is an MVP built during HackBarna / AI Summit Barcelona 2026. It must run live on Telegram, comply strictly with EU regulations prohibiting non-regulated financial advice, and utilize technologies from at least three event sponsors (Mastra, Nebius Token Factory, Galtea).
 
+The product content is frozen in [`finance-blind-spot-v1-spec.html`](../../../finance-blind-spot-v1-spec.html) (repo root; "v1 master build document", content owner Elena). Section numbers below (`v1 §n`) refer to that document. Where this design and the v1 document disagree, the v1 document wins and this design must be updated.
+
 ## Goals / Non-Goals
 
 **Goals:**
-- Deliver a responsive, single-question-at-a-time conversational interview over Telegram via Mastra.
-- Enforce strict separation between factual computation (pure code calculation engine) and natural language generation (LLM explanation).
-- Implement an automated outbound message guardrail filter verifying zero advice/product mentions.
-- Provide unit test coverage over all calculation formulas and threshold edge cases.
-- Integrate Galtea adversarial evaluation to demonstrate a measurable "find, fix, prove" security/compliance cycle.
+- Walk the ~40 v1 fields one message at a time over Telegram, with consent first and an explicit "I don't know" everywhere.
+- Implement the v1 §5 retirement projection and §6 twenty-rule blind-spot engine as pure TypeScript, reproducing test cases A–D (v1 §10) exactly.
+- Render results and blind spots from the static v1 §7 content library; let the model rephrase only `why`.
+- Enforce the advice boundary with an independent outbound classifier and compliance trigger log.
+- Store every assessment immutably and deliver the six-month re-assessment loop (v1 §9) via `/revisit`.
+- Integrate Galtea adversarial evaluation to demonstrate a measurable "find, fix, prove" cycle.
 
 **Non-Goals:**
-- No custom mobile/web UI (Telegram is the exclusive user interface for the MVP).
-- No integration with banking APIs, Plaid, or live account credentials (ranges and approximate numbers only).
-- No persistent distributed database infrastructure (local SQLite / session-scoped storage is sufficient).
-- No production cron scheduler for 6-month revisits (simulated on-demand via command).
+- No custom mobile/web UI (Telegram is the exclusive user interface for the MVP; the v1 document's "screens" map to Telegram messages).
+- No banking APIs, live account credentials, or exact figures (approximate numbers only).
+- No distributed database (local SQLite).
+- No scheduled push nudges (the "six or twelve months" reminder is offered on the next interaction).
+- Everything v1 §11 defers to v2: post-retirement income periods, tax, risk attitude, partner as a separate person, multi-currency conversion, rental income, per-account detail, retirement end age, bank feeds, pension transfer analysis.
 
 ## Decisions
 
-### 1. Separation of Computation and Explanation (Core Architectural Thesis)
-- **Decision**: All financial indicators (emergency runway, debt ratio, retirement visibility, concentration, cross-border complexity) and their R/A/G threshold flags are calculated strictly in pure TypeScript functions. The LLM is never permitted to calculate numbers or choose flag colors.
-- **Rationale**: Guarantees deterministic, auditable results that cannot hallucinate math. Provides Galtea with two distinct boundaries to test: mathematical interpretation accuracy and regulatory compliance drift.
-- **Alternatives Considered**: End-to-end prompt-based scoring (rejected: non-deterministic and dangerous under financial regulations).
+### 1. The agent sits either side of the maths, never inside it
+- **Decision**: The LLM (a) maps a free-text reply onto the current field's typed value or `null`, (b) rephrases a library `why` around the user's numbers. Everything else — question order, validation, derived values, projection, rules, severity, ranking, comparison, results copy — is pure TypeScript.
+- **Rationale**: Deterministic, auditable, testable against v1 §10; gives Galtea two clear boundaries (invented numbers, advice drift).
+- **Alternatives Considered**: End-to-end prompt-based assessment (rejected: non-deterministic and dangerous under financial regulations).
 
-### 2. Framework & Routing: Mastra on Node.js / TypeScript
-- **Decision**: Use `@mastra/core` for agent memory, channel integration, and workflow orchestration.
-- **Rationale**: Fulfills the Mastra challenge requirement, provides native Telegram channel connectivity, and includes built-in conversation memory.
+### 2. Field IDs are the contract
+- **Decision**: `Answers` is a flat object keyed by the v1 field IDs (plus `pensions: PensionRow[]` and `learning_priorities: Topic[]`). Every question template, schema, rule and formula references a field ID. The questionnaire order and copy live in one data file (`src/questionnaire/fields.ts`).
+- **Rationale**: v1 §1 "the engine only ever reads IDs"; lets copy be edited without touching the engine.
 
-### 3. Model Selection: Nebius Token Factory
-- **Decision**: Use `deepseek-ai/DeepSeek-V4.1-Flash` for the primary conversational agent and `nvidia/Nemotron-3_5-Lightning` for the outbound guardrail classifier.
-- **Rationale**:
-  - `DeepSeek-V4.1-Flash`: Fast TTFT, high JSON accuracy for turn extraction.
-  - `Nemotron-3_5-Lightning`: Extremely lightweight and low latency (<150ms) for real-time binary classification (`ALLOW` vs `BLOCK`) before transmitting to Telegram.
-- **Alternatives Considered**: Large 400B models (rejected for main loop due to Telegram latency constraints).
-- **Verification**: The exact model identifiers and the guardrail latency budget are assumptions until task 1.2 confirms them against the Nebius model list; if either model is unavailable, substitute the closest fast model and record the swap here.
+### 3. Zero, unknown and blank are three different things (v1 §5)
+- **Decision**: `0` is a number; "I don't know" is `null`; a blank required field is `undefined` and the state machine does not advance. The engine never coerces `null` to `0`; any `null` used by a formula term drops the term, appends the field ID to `missing_fields` and sets `is_minimum_estimate`. Conditional fields that were skipped are stored as the sentinel `'n/a'`.
+- **Rationale**: "Not knowing is the finding."
 
-### 4. Guardrail Mechanism: Three-layer Defense
+### 4. Single currency in v1
+- **Decision**: `base_currency ∈ {EUR, GBP, USD}` is asked at the start of section B; all money fields are in that currency; no conversion exists. Rule 17 uses `cash_currency_mismatch` and a bundled `COUNTRY_CURRENCY` lookup (ISO-3166 alpha-2 → ISO-4217) for `retire_country`.
+- **Rationale**: v1 §11 explicitly defers multi-currency holdings and conversion to v2.
+
+### 5. Projection engine (v1 §5)
+- **Decision**: Implement the eleven formula steps verbatim (see [calculation-engine spec](specs/calculation-engine/spec.md)) in `src/engine/projection.ts` as a pure function of `(Answers, Assumptions)`. Lump sums compound annually, monthly flows compound monthly at `mr = investment_growth_rate / 12`. Pension rows with `pension_start_age > retire_age` are excluded entirely and set `results.excluded_pensions[]`. Results are computed at the user's `withdrawal_rate` and at 3% and 5%. Display rounding to the nearest hundred happens in `render.ts` only.
+- **Verification**: `tests/engine/projection.test.ts` pins the four v1 §10 cases (A: 879,387 / 907,888 / +28,501; B: 1,179,492 / +300,105; C: 1,507,520 / −599,632; D: 1,256,267 / −348,379) to ±1.
+- **Rationale**: The numbers are given; anything else is a bug.
+
+### 6. Blind-spot rule engine (v1 §6)
+- **Decision**: Twenty rules in `src/rules/rules.ts` as an ordered array `RULES: Rule[]`, each `{ number, id, topic, baseSeverity, fires(ctx) }` where `ctx = { answers, derived, results }`. `evaluateRules` returns fired rules with base severity; `applyTopicBump` raises severity one level when `topic ∈ learning_priorities`; `selectActionPlan` sorts by severity desc then rule number asc and takes three. `≠ yes` is implemented as `v !== 'yes'` so `null` and `'don't know'` fire.
+- **Rationale**: Fixed severities and rule-number tie-break make two runs of the same answers produce the same plan.
+
+### 7. Content library is data (v1 §7)
+- **Decision**: `content/blind_spots.json` keyed by `rule_id` with `{ title, headline, why, learn[], ask, severity, topic }`, copied verbatim from v1 §7. `render.ts` fills `{retire_age}` / `{pension_start_age}` placeholders deterministically. `explain.ts` asks the model to rephrase `why` given the user's `derived`/`results` numbers; the output is accepted only if the guardrail passes and the deterministic number check (every figure in the draft appears in the allowed-number set) passes, otherwise the library `why` is used.
+- **Rationale**: "This file is where the advice boundary is most easily broken"; keeping it as data lets copy be fixed without a deploy.
+
+### 8. Framework & Routing: Mastra on Node.js / TypeScript
+- **Decision**: Use `@mastra/core` `Agent` for the two model calls (extraction, explanation). Telegram transport: Mastra channel adapter if one exists, otherwise `grammy` long polling feeding `handleMessage`.
+- **Verification**: Adapter availability is unverified — task 1.5 records the outcome here.
+
+### 9. Model Selection: Nebius Token Factory
+- **Decision**: `deepseek-ai/DeepSeek-V4.1-Flash` for extraction and explanation; `nvidia/Nemotron-3_5-Lightning` for the outbound classifier.
+- **Verification**: Exact model IDs are assumptions until task 1.4 confirms them against `GET /models`; substitute the closest fast model and record the swap here.
+
+### 10. Guardrail: Three-layer Defense
 - **Decision**:
-  1. **System prompt boundary**: declares education-only in the welcome message and in the agent's role definition.
-  2. **Deterministic scoring**: the model never calculates indicators or picks flag colours (Decision 1), so it has no numbers of its own to recommend from.
-  3. **Outbound message classifier hook**: intercepts every LLM-generated free-text message (templated questions, disclaimers, and rendered scorecard tables are exempt); if it mentions specific tickers, buy/sell directives, allocation percentages, or provider endorsements, the agent regenerates with a stricter educational prompt. After **2** rejections the agent stops regenerating and sends a fixed, pre-approved educational fallback message. Every rejection is logged as a compliance trigger (timestamp, session id, draft, verdict).
-- **Rationale**: A disclaimer is not a compliance control. Active interception prevents regulatory breach; the retry cap bounds latency and guarantees termination; the trigger log is the raw material for the Galtea before/after metric.
+  1. **System prompt boundary**: education-only role; may/may-not list from v1 §1 embedded verbatim.
+  2. **Deterministic numbers and copy**: the model has no numbers or actions of its own (Decisions 1, 5–7).
+  3. **Outbound classifier**: every model-generated text is classified `ALLOW`/`BLOCK` (recommendations of products, providers, allocations, transfers/consolidation, invented figures). After **2** rejections the library `why` is sent. Every rejection is logged as a `ComplianceTrigger`.
+- **Rationale**: A disclaimer is not a control; the retry cap bounds latency; the trigger log feeds the Galtea before/after metric.
 
-### 5. Indicator States and Default Thresholds
-- **Decision**: Every indicator resolves to one of four states: `GREEN`, `AMBER`, `RED`, or `UNKNOWN` (insufficient or zero-valued input). All thresholds live in a single configuration module (`thresholds.ts`) with the defaults below; unit tests pin the boundaries.
+### 11. Sensitive Input Filter (Inbound, Deterministic)
+- **Decision**: Regex/Luhn filter in plain code replaces IBANs, card numbers, long digit runs, passport-like and tax-ID-like tokens with `[redacted]` before any model call; the original is never persisted.
+- **Rationale**: PII must never leave the process; an LLM detector would already have transmitted it.
 
-  | Indicator | Formula | Green | Amber | Red |
-  | --- | --- | --- | --- | --- |
-  | Emergency Runway | liquid cash / monthly essential expenditure (months) | >= 6 | >= 3 and < 6 | < 3 |
-  | Debt Exposure | monthly debt service / monthly net income | < 20% | 20% to 35% | > 35% |
-  | Retirement Visibility | count of pension pots with unknown value or tax status; retirement age stated | 0 unknown and age stated | 1 unknown, or age missing | >= 2 unknown |
-  | Asset Concentration | largest single asset class or currency / total assets | < 50% | 50% to 75% | > 75% |
-  | Cross-Border Complexity | distinct jurisdictions across income, assets, pensions, tax residency, plus 1 per unknown tax status | <= 2 and no unknown tax status | 3, or 1 unknown tax status | >= 4, or >= 2 unknown |
+### 12. Storage: immutable assessments (v1 §4)
+- **Decision**: SQLite via `better-sqlite3` (`:memory:` in tests). Tables: `assessments` (`id`, `user_id`, `created_at`, `status`, `base_currency`, `answers_json`, `assumptions_json`, `derived_json`, `results_json`, `blind_spots_json`), `interview_state` (`user_id`, `state_json`) for drafts, `compliance_triggers`. A complete assessment row is never updated; a re-assessment inserts a new row. `/forget` deletes every row for the user.
+- **Rationale**: Separate `answers`/`assumptions`/`results` allow recomputing old answers under today's assumptions (Decision 13).
 
-- **Ranking**: Blind spots are ranked `RED` > `AMBER` > `UNKNOWN` > `GREEN`; ties are broken by a fixed indicator priority (Emergency Runway, Debt Exposure, Retirement Visibility, Cross-Border Complexity, Asset Concentration). The scorecard shows up to three non-Green indicators; if fewer exist, it shows only those.
-- **Rationale**: Boundaries must exist somewhere for task 4.2 to test them; centralising them keeps the pure functions free of magic numbers and makes tuning after the Galtea run a one-file change.
-
-### 6. Base Currency Normalisation
-- **Decision**: The interview asks the user to declare a base currency (default: currency of current residence) before any amount is collected. Amounts given in another currency are converted to the base currency using a static rate table bundled with the app (dated, editable); the conversion and the rate used are recorded on the profile. All calculations run on base-currency values.
-- **Rationale**: The target user earns, spends, and saves in different currencies; dividing GBP cash by EUR expenses silently produces a wrong runway. Static rates are sufficient for range-based estimates and keep the demo offline-safe.
-- **Alternatives Considered**: Live FX API (rejected: extra dependency and network risk at the venue for negligible accuracy gain on approximate inputs).
-
-### 7. Sensitive Input Filter (Inbound, Deterministic)
-- **Decision**: Before any user message is forwarded to Nebius, a regex/heuristic filter in plain code detects IBANs, card numbers (Luhn), long digit runs, passport-like patterns, and common tax-ID formats; matches are replaced with `[redacted]`, and the user is told that only ranges and estimates are needed.
-- **Rationale**: The privacy invariant is only meaningful if PII never leaves the process; an LLM-based detector would already have transmitted the data.
-
-### 8. Storage Architecture and Data Lifecycle
-- **Decision**: SQLite via `better-sqlite3` (path `:memory:` for tests), keyed by Telegram user id. Two tables: `snapshots` (profile + scorecard + timestamp + label such as `baseline` or `revisit`) and `compliance_triggers` (see Decision 4). A `/forget` command deletes every row for the requesting user id. No retention beyond the demo; the datastore is documented as disposable.
-- **Rationale**: Minimizes setup friction and keeps baseline snapshots reproducible across demo runs, while giving the user an erasure path consistent with the data-minimisation invariant.
-
-### 9. Simulated Revisit
-- **Decision**: `/revisit` re-asks only the mutable numeric fields (liquid cash, monthly expenditure, debt service, income, largest asset share, number of pensions with unknown values); unchanged answers are carried forward from the baseline. The new snapshot is labelled `revisit` with the real timestamp; "six months later" is a presentation label, not a fake clock. If no baseline exists, the bot explains and offers to start the full assessment.
-- **Rationale**: Keeps the follow-up under two minutes for the demo while producing a genuine then-versus-now delta.
+### 13. Re-assessment and comparison (v1 §9)
+- **Decision**: `/revisit` builds an `InterviewState` prefilled from the latest complete assessment, orders previously-`null` fields first, then walks sections A–H accepting "same" to copy forward. On completion `compare(previous.answers, current.answers, current.assumptions)` recomputes **both** runs through `projection` + `rules` under the current assumptions and returns `Delta`. The progress view is rendered from `Delta` only.
+- **Rationale**: Comparing stored results would show an assumption tweak as progress.
 
 ## Project Layout
 
@@ -82,53 +88,57 @@ All paths are relative to the repo root. Tests mirror `src/` under `tests/` with
 
 ```
 package.json, tsconfig.json, vitest.config.ts, .env.example
+content/
+  blind_spots.json                 v1 §7 copy keyed by rule_id (Decision 7)
 src/
   index.ts                         boot: load env, open store, build agent, start Telegram transport
   config/
     env.ts                         zod-validated process.env -> Env
-    thresholds.ts                  THRESHOLDS defaults + INDICATOR_PRIORITY (Decision 5)
-    fxRates.ts                     FX_RATES static table with `asOf` date (Decision 6)
+    assumptions.ts                 DEFAULT_ASSUMPTIONS + ASSUMPTION_RANGES (v1 §3G)
+    countryCurrency.ts             COUNTRY_CURRENCY lookup (Decision 4)
   llm/
     nebius.ts                      OpenAI-SDK client for Nebius + MODELS constants
-    prompts.ts                     SYSTEM_PROMPT, EXTRACTION_PROMPT, EXPLANATION_PROMPT, GUARDRAIL_PROMPT, FALLBACK_MESSAGES
+    prompts.ts                     SYSTEM_PROMPT, EXTRACTION_PROMPT, EXPLANATION_PROMPT, GUARDRAIL_PROMPT
   privacy/
-    sensitiveFilter.ts             redactSensitive() (Decision 7)
-  profile/
-    schema.ts                      zod schemas + inferred types for FinancialProfile and parts
-    extract.ts                     extractProfileUpdate(): LLM turn -> partial profile
+    sensitiveFilter.ts             redactSensitive() (Decision 11)
+  questionnaire/
+    fields.ts                      FIELDS: ordered FieldDef[] with id, section, prompt, type, options, showIf (v1 §3)
+    schema.ts                      zod schemas: AnswersSchema, PensionRowSchema, AssumptionsSchema, per-field parsers
+    extract.ts                     extractFieldValue(): LLM maps reply -> typed value | null
   interview/
-    domains.ts                     INTERVIEW_DOMAINS ordered list with question templates + required fields
-    stateMachine.ts                nextQuestion(), applyAnswer(), isComplete()
-    revisit.ts                     REVISIT_FIELDS + buildRevisitProfile()
+    stateMachine.ts                createState(), currentField(), applyAnswer(), isComplete()
+    revisit.ts                     createRevisitState(): prefilled state, unknowns first
   engine/
-    fx.ts                          toBaseCurrency()
-    indicators/
-      runway.ts                    computeRunway()
-      debt.ts                      computeDebtExposure()
-      retirement.ts                computeRetirementVisibility()
-      concentration.ts             computeAssetConcentration()
-      crossBorder.ts               computeCrossBorderComplexity()
-    score.ts                       scoreIndicator(), buildScorecard()
-    rank.ts                        rankBlindspots()
+    derived.ts                     computeDerived()
+    validate.ts                    validateAnswers()
+    projection.ts                  computeProjection() (Decision 5)
+  rules/
+    rules.ts                       RULES: Rule[] (twenty, Decision 6)
+    evaluate.ts                    evaluateRules(), applyTopicBump(), selectActionPlan()
+  assess/
+    assess.ts                      runAssessment(): answers+assumptions -> derived, results, blind_spots
+    compare.ts                     compare(): Delta (Decision 13)
   guardrail/
     classifier.ts                  classifyOutbound(): text -> Verdict
-    guard.ts                       guardedGenerate(): generate -> classify -> retry -> fallback
+    numbers.ts                     allowedNumbers(), hasInventedNumber()
+    guard.ts                       guardedGenerate(): generate -> checks -> retry -> fallback
   explain/
-    explain.ts                     explainScorecard(): LLM prose per blind spot via guardedGenerate
-    render.ts                      renderScorecard(), renderComparison(), renderWelcome() templates
+    content.ts                     loadContent(): BlindSpotContent map, fillPlaceholders()
+    explain.ts                     explainBlindSpot(): rephrased why via guardedGenerate
+    render.ts                      renderConsent(), renderQuestion(), renderResults(), renderActionPlan(), renderProgress()
   store/
     db.ts                          openStore(path): Store (better-sqlite3)
-    snapshots.ts                   snapshot table functions
+    assessments.ts                 assessments + interview_state table functions
     triggers.ts                    compliance_triggers table functions
   agent/
-    agent.ts                       Mastra Agent definition (model, instructions, memory)
-    telegram.ts                    startTelegram(): polling transport -> handleMessage
+    agent.ts                       Mastra Agent definition (model, instructions)
+    telegram.ts                    startTelegram(): transport -> handleMessage
     handlers.ts                    handleMessage(): /start, /revisit, /forget, free text
 eval/
   galtea/
     prompts.json                   adversarial prompt set
     run.ts                         Galtea runner -> metrics JSON
-tests/                             mirrors src/
+tests/                             mirrors src/; tests/fixtures/cases.ts holds v1 §10 A–D
 ```
 
 ## Shared Types & Interfaces
@@ -136,118 +146,246 @@ tests/                             mirrors src/
 Tasks reference these names verbatim. Owner file is given in brackets; consumers import from it.
 
 ```ts
-// [src/profile/schema.ts]
-export type Currency = string;                       // ISO-4217, upper-case
-export interface Money { amount: number; currency: Currency }
-export interface PensionPot { country: string; valueKnown: boolean; value?: Money; taxStatusKnown: boolean }
-export interface AssetHolding { kind: 'cash' | 'property' | 'equities' | 'bonds' | 'crypto' | 'other'; country: string; value: Money }
-export interface FinancialProfile {
-  telegramUserId: string;
-  baseCurrency: Currency;
-  residenceCountry: string;                          // ISO-3166 alpha-2
-  age?: number;
-  retirementAge?: number;
-  monthlyNetIncome?: Money;
-  monthlyEssentialExpenditure?: Money;
-  liquidCash?: Money;
-  monthlyDebtService?: Money;
-  assets: AssetHolding[];
-  pensions: PensionPot[];
-  incomeCountries: string[];
-  taxResidencies: string[];
+// [src/questionnaire/schema.ts]
+export type Currency = 'EUR' | 'GBP' | 'USD';
+export type YesNoDk = 'yes' | 'no' | 'dont_know';
+export type Unknown = null;                           // "I don't know"
+export type NotApplicable = 'n/a';                    // conditional field skipped
+export type Topic = 'protection' | 'succession' | 'education' | 'savings' | 'retirement' | 'investments' | 'cross_border' | 'property' | 'debt' | 'fees';
+export interface PensionRow {
+  pension_country: string;                            // ISO-3166 alpha-2
+  pension_type: 'state' | 'workplace_dc' | 'personal' | 'defined_benefit' | 'annuity' | 'other';
+  pension_value: number | Unknown | NotApplicable;
+  pension_fixed_income_monthly: number | Unknown | NotApplicable;
+  pension_start_age: number | Unknown;
+  pension_contribution_monthly: number;
+  pension_contributions_continue: YesNoDk;
 }
-export const FinancialProfileSchema: z.ZodType<FinancialProfile>;
-export type ProfilePatch = Partial<Omit<FinancialProfile, 'telegramUserId'>>;
+export interface Answers {
+  // A
+  consent: 'yes';
+  age: number;
+  has_partner: 'just_me' | 'household';
+  residence_country: string;
+  stay_abroad: 'yes' | 'no' | 'unsure' | 'n/a';
+  dependants: number;
+  education_funded: YesNoDk | NotApplicable;
+  decision_maker: 'me' | 'partner' | 'joint' | NotApplicable;
+  partner_knows: YesNoDk | NotApplicable;
+  // B
+  base_currency: Currency;
+  income_monthly: number | Unknown;
+  spend_housing: number | Unknown;
+  spend_living: number | Unknown;
+  spend_debt: number | Unknown;
+  spend_other: number | Unknown;
+  saving_monthly_other: number | Unknown;
+  // C
+  cash_total: number | Unknown;
+  cash_currency_mismatch: YesNoDk;
+  money_countries: string[];
+  investments_total: number | Unknown;
+  fees_known: 'yes' | 'no' | 'not_sure';
+  home_value: number | Unknown;
+  home_mortgage: number | Unknown;
+  property_value: number | Unknown;
+  property_mortgage: number | Unknown;
+  property_for_retirement: YesNoDk;
+  debt_total: number | Unknown;
+  debt_max_rate: number | Unknown;                    // percent, e.g. 8.5
+  debt_at_retirement: number | Unknown;
+  // D
+  pensions: PensionRow[];
+  beneficiaries_named: YesNoDk;
+  // E
+  life_cover: YesNoDk;
+  life_cover_amount: number | Unknown | NotApplicable;
+  illness_cover: YesNoDk;
+  health_cover: YesNoDk;
+  will: 'yes' | 'no';
+  will_country: string | NotApplicable;
+  will_year: number | Unknown | NotApplicable;
+  // F
+  retire_age: number;
+  retire_country: string | Unknown;
+  retire_income_monthly: number | Unknown;
+  // H
+  learning_priorities: Topic[];
+}
+export interface Assumptions {
+  inflation_rate: number;            // 0.03
+  investment_growth_rate: number;    // 0.05
+  cash_growth_rate: number;          // 0.02
+  property_growth_rate: number;      // 0.03
+  withdrawal_rate: number;           // 0.04
+}
+export const AnswersSchema: z.ZodType<Answers>;
+export const PensionRowSchema: z.ZodType<PensionRow>;
+export const AssumptionsSchema: z.ZodType<Assumptions>;
+export type FieldId = keyof Answers | keyof PensionRow | keyof Assumptions;
 
-// [src/engine/score.ts]
-export type IndicatorId = 'emergency_runway' | 'debt_exposure' | 'retirement_visibility' | 'asset_concentration' | 'cross_border_complexity';
-export type IndicatorState = 'GREEN' | 'AMBER' | 'RED' | 'UNKNOWN';
-export interface IndicatorResult { id: IndicatorId; value: number | null; state: IndicatorState; missingInputs: string[] }
-export interface Scorecard { indicators: IndicatorResult[]; blindspots: IndicatorId[]; baseCurrency: Currency; computedAt: string }
+// [src/questionnaire/fields.ts]
+export type Section = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
+export type FieldType = 'money' | 'integer' | 'percent' | 'year' | 'country' | 'country_list' | 'enum' | 'multi_select' | 'currency';
+export interface FieldDef {
+  id: FieldId;
+  section: Section;
+  prompt: string;                    // on-screen wording from v1 §3
+  helper?: string;                   // required helper copy
+  type: FieldType;
+  options?: string[];                // enum / multi_select
+  zeroValid?: boolean;
+  allowUnknown: boolean;             // offers "I don't know" -> null
+  showIf?: (a: Partial<Answers>) => boolean;
+  repeat?: 'pensions';               // section D row fields
+}
+export const FIELDS: FieldDef[];      // section order A..H
+export const PENSION_FIELDS: FieldDef[];
 
-// [src/config/thresholds.ts]
-export interface Band { green: (v: number) => boolean; amber: (v: number) => boolean }   // else RED
-export const THRESHOLDS: Record<Exclude<IndicatorId, 'retirement_visibility' | 'cross_border_complexity'>, Band>;
-export const INDICATOR_PRIORITY: IndicatorId[];     // Decision 5 tie-break order
-export const STATE_SEVERITY: Record<IndicatorState, number>;   // RED 3, AMBER 2, UNKNOWN 1, GREEN 0
+// [src/config/assumptions.ts]
+export const DEFAULT_ASSUMPTIONS: Assumptions;
+export const ASSUMPTION_RANGES: Record<keyof Assumptions, { min: number; max: number }>;
 
-// [src/config/fxRates.ts]
-export const FX_RATES: { asOf: string; base: 'EUR'; rates: Record<Currency, number> };
+// [src/config/countryCurrency.ts]
+export const COUNTRY_CURRENCY: Record<string, string>;   // 'DE' -> 'EUR'
 
-// [src/engine/fx.ts]
-export type FxResult = { ok: true; amount: number; rate: number } | { ok: false; reason: 'no_rate' };
-export function toBaseCurrency(m: Money, base: Currency): FxResult;
+// [src/engine/derived.ts]
+export interface Derived { monthly_spending: number | null; monthly_surplus: number | null; net_worth: number | null; financial_assets: number | null; property_net: number | null }
+export function computeDerived(a: Answers): Derived;
 
-// [src/engine/indicators/*.ts]  one per file, same shape
-export function computeRunway(p: FinancialProfile): IndicatorResult;
-export function computeDebtExposure(p: FinancialProfile): IndicatorResult;
-export function computeRetirementVisibility(p: FinancialProfile): IndicatorResult;
-export function computeAssetConcentration(p: FinancialProfile): IndicatorResult;
-export function computeCrossBorderComplexity(p: FinancialProfile): IndicatorResult;
+// [src/engine/validate.ts]
+export type ValidationError = { field: FieldId; reason: 'retire_age_not_after_age' | 'rate_not_positive' | 'negative_money' | 'pension_start_age_out_of_range' };
+export function validateAnswers(a: Answers, s: Assumptions): ValidationError[];
 
-// [src/engine/rank.ts]
-export function rankBlindspots(results: IndicatorResult[]): IndicatorId[];   // up to 3 non-GREEN
+// [src/engine/projection.ts]
+export interface RateResult { withdrawal_rate: number; required_pot: number; position: number; position_today: number }
+export interface Results {
+  mode: 'projection' | 'no_target' | 'already_retired' | 'no_gap';
+  years: number | null;
+  required_pot: number | null;
+  projected_assets: number | null;
+  position: number | null;
+  position_today: number | null;
+  extra_monthly: number | null;
+  sensitivity: RateResult[];        // at 0.03, user rate, 0.05
+  is_minimum_estimate: boolean;
+  missing_fields: FieldId[];
+  excluded_pensions: number[];      // indices into answers.pensions with start age > retire_age
+}
+export function computeProjection(a: Answers, s: Assumptions, d: Derived): Results;
 
-// [src/engine/score.ts]
-export function buildScorecard(p: FinancialProfile, now?: Date): Scorecard;
+// [src/rules/rules.ts]
+export type RuleId =
+  | 'thin_emergency_fund' | 'negative_surplus' | 'family_unprotected' | 'no_income_safety_net' | 'no_health_cover'
+  | 'succession_gap' | 'education_unfunded' | 'pension_visibility' | 'pension_timing_gap' | 'scattered_pensions'
+  | 'beneficiary_gap' | 'fees_unknown' | 'expensive_debt' | 'debt_into_retirement' | 'cash_concentration'
+  | 'property_concentration' | 'currency_exposure' | 'single_point_of_failure' | 'retirement_gap' | 'lifestyle_reality_check';
+export type Severity = 'low' | 'medium' | 'high';
+export interface RuleContext { answers: Answers; derived: Derived; results: Results; now: Date }
+export interface Rule { number: number; id: RuleId; topic: Topic; baseSeverity: Severity; fires(ctx: RuleContext): boolean }
+export const RULES: Rule[];           // length 20, ascending number
+
+// [src/rules/evaluate.ts]
+export interface FiredRule { rule_id: RuleId; number: number; severity: Severity; fired_at: string }
+export function evaluateRules(ctx: RuleContext): FiredRule[];
+export function applyTopicBump(fired: FiredRule[], priorities: Topic[]): FiredRule[];
+export function selectActionPlan(fired: FiredRule[]): FiredRule[];        // top 3
+
+// [src/assess/assess.ts]
+export interface Assessment {
+  id: string; user_id: string; created_at: string; status: 'draft' | 'complete'; base_currency: Currency;
+  answers: Answers; assumptions: Assumptions; derived: Derived; results: Results; blind_spots: FiredRule[];
+}
+export function runAssessment(a: Answers, s: Assumptions, now?: Date): Pick<Assessment, 'derived' | 'results' | 'blind_spots'>;
+
+// [src/assess/compare.ts]
+export interface Delta {
+  position_change: number | null; net_worth_change: number | null; monthly_saving_change: number | null; emergency_months_change: number | null;
+  blind_spots_closed: RuleId[]; blind_spots_new: RuleId[]; blind_spots_still_open: RuleId[];
+  unknowns_resolved: FieldId[]; assumptions_changed: boolean;
+}
+export function compare(previous: Assessment, current: Assessment): Delta;   // both recomputed under current.assumptions
 
 // [src/privacy/sensitiveFilter.ts]
 export interface RedactionResult { text: string; redacted: boolean; kinds: Array<'iban' | 'card' | 'passport' | 'tax_id' | 'digit_run'> }
 export function redactSensitive(text: string): RedactionResult;
 
-// [src/guardrail/classifier.ts]
-export type Verdict = 'ALLOW' | 'BLOCK';
-export function classifyOutbound(text: string, deps?: { client: OpenAI }): Promise<Verdict>;
-
-// [src/guardrail/guard.ts]
-export interface GuardDeps { classify: (t: string) => Promise<Verdict>; logTrigger: (t: ComplianceTrigger) => void; maxAttempts?: number }  // default 2
-export function guardedGenerate(generate: (attempt: number) => Promise<string>, fallback: string, ctx: { userId: string }, deps: GuardDeps): Promise<{ text: string; attempts: number; fellBack: boolean }>;
-
-// [src/store/db.ts]
-export interface Snapshot { userId: string; label: 'baseline' | 'revisit'; createdAt: string; profile: FinancialProfile; scorecard: Scorecard }
-export interface ComplianceTrigger { userId: string; createdAt: string; draft: string; verdict: Verdict; attempt: number }
-export interface Store {
-  saveSnapshot(s: Snapshot): void;                  // replaces existing row with same userId+label
-  getSnapshot(userId: string, label: Snapshot['label']): Snapshot | undefined;
-  logTrigger(t: ComplianceTrigger): void;
-  countTriggers(since?: string): number;
-  deleteUser(userId: string): { snapshots: number; triggers: number };
-}
-export function openStore(path: string | ':memory:'): Store;
+// [src/questionnaire/extract.ts]
+export type Extracted<T> = { ok: true; value: T | null } | { ok: false };   // null = user said don't know
+export function extractFieldValue(field: FieldDef, reply: string, deps: { client: OpenAI }): Promise<Extracted<unknown>>;
 
 // [src/interview/stateMachine.ts]
-export interface InterviewState { profile: FinancialProfile; domainIndex: number; awaitingClarification?: string; complete: boolean }
-export function nextQuestion(s: InterviewState): string | null;               // null when complete
-export function applyAnswer(s: InterviewState, patch: ProfilePatch): InterviewState;
+export interface InterviewState { userId: string; answers: Partial<Answers>; assumptions: Assumptions; pensionDraft?: Partial<PensionRow>; fieldIndex: number; pensionFieldIndex?: number; retries: number; mode: 'assess' | 'revisit'; prefill?: Answers; complete: boolean }
+export function createState(userId: string): InterviewState;
+export function currentField(s: InterviewState): FieldDef | null;              // null when complete
+export function applyAnswer(s: InterviewState, value: unknown): InterviewState;
 export function isComplete(s: InterviewState): boolean;
 
 // [src/interview/revisit.ts]
-export const REVISIT_FIELDS: Array<keyof FinancialProfile>;                  // Decision 9
-export function buildRevisitProfile(baseline: FinancialProfile, patch: ProfilePatch): FinancialProfile;
+export function createRevisitState(userId: string, previous: Assessment): InterviewState;   // unknown fields first, prefill set
+
+// [src/guardrail/classifier.ts]
+export type Verdict = 'ALLOW' | 'BLOCK';
+export function classifyOutbound(text: string, deps: { client: OpenAI }): Promise<Verdict>;
+
+// [src/guardrail/numbers.ts]
+export function allowedNumbers(a: Answers, d: Derived, r: Results, libraryText: string): Set<number>;
+export function hasInventedNumber(draft: string, allowed: Set<number>): boolean;
+
+// [src/guardrail/guard.ts]
+export interface GuardDeps { classify: (t: string) => Promise<Verdict>; inventedNumber: (t: string) => boolean; logTrigger: (t: ComplianceTrigger) => void; maxAttempts?: number }  // default 2
+export function guardedGenerate(generate: (attempt: number) => Promise<string>, fallback: string, ctx: { userId: string }, deps: GuardDeps): Promise<{ text: string; attempts: number; fellBack: boolean }>;
+
+// [src/explain/content.ts]
+export interface BlindSpotContent { title: string; headline: string; why: string; learn: string[]; ask: string; severity: Severity; topic: Topic }
+export function loadContent(): Record<RuleId, BlindSpotContent>;
+export function fillPlaceholders(text: string, a: Answers, r: Results): string;
+
+// [src/explain/explain.ts]
+export function explainBlindSpot(rule: FiredRule, assessment: Assessment, deps: { client: OpenAI; guard: GuardDeps }): Promise<string>;   // returns why text
 
 // [src/explain/render.ts]
-export function renderWelcome(): string;
-export function renderScorecard(sc: Scorecard, explanations: Record<IndicatorId, string>): string;
-export function renderComparison(before: Scorecard, after: Scorecard): string;
+export function renderConsent(): string;
+export function renderQuestion(f: FieldDef, currency?: Currency, prefill?: unknown): string;
+export function renderResults(a: Assessment): string;
+export function renderActionPlan(a: Assessment, whys: Record<RuleId, string>): string;
+export function renderProgress(previous: Assessment, current: Assessment, delta: Delta): string;
+export function roundHundred(n: number): number;
+
+// [src/store/db.ts]
+export interface ComplianceTrigger { userId: string; createdAt: string; draft: string; verdict: Verdict; attempt: number; reason: 'classifier' | 'invented_number' }
+export interface Store {
+  insertAssessment(a: Assessment): void;                          // throws if id exists
+  latestComplete(userId: string): Assessment | undefined;
+  listAssessments(userId: string): Assessment[];
+  saveState(s: InterviewState): void;
+  loadState(userId: string): InterviewState | undefined;
+  clearState(userId: string): void;
+  logTrigger(t: ComplianceTrigger): void;
+  countTriggers(since?: string): number;
+  deleteUser(userId: string): { assessments: number; states: number; triggers: number };
+}
+export function openStore(path: string | ':memory:'): Store;
 
 // [src/agent/handlers.ts]
 export interface Incoming { userId: string; text: string }
-export interface Outgoing { text: string }
+export interface Outgoing { text: string; options?: string[] }   // options -> reply keyboard
+export interface HandlerDeps { store: Store; llm: OpenAI; guard: GuardDeps; now?: () => Date }
 export function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<Outgoing>;
-export interface HandlerDeps { store: Store; sessions: Map<string, InterviewState>; llm: OpenAI; classify: GuardDeps['classify'] }
 ```
 
 External APIs relied on:
-- `openai` (`new OpenAI({ baseURL, apiKey })`, `chat.completions.create` with `response_format: { type: 'json_object' }`).
+- `openai` (`new OpenAI({ baseURL, apiKey })`, `chat.completions.create` with `response_format: { type: 'json_object' }`, `models.list()`).
 - `better-sqlite3` (`new Database(path)`, `prepare().run()/get()/all()`).
-- `zod` (`z.object`, `.safeParse`).
-- `@mastra/core` `Agent` class; whether a Telegram channel adapter exists is unverified - verify in task 1.4. Fallback transport is `grammy` long polling (`new Bot(token)`, `bot.on('message:text')`, `bot.start()`).
-- `galtea` SDK: API surface unverified - verify in task 7.1.
+- `zod` (`z.object`, `.safeParse`, `.nullable()`).
+- `@mastra/core` `Agent` class; whether a Telegram channel adapter exists is unverified — verify in task 1.5. Fallback transport is `grammy` long polling (`new Bot(token)`, `bot.on('message:text')`, `ctx.reply(text, { reply_markup: Keyboard })`, `bot.start()`).
+- `galtea` SDK: API surface unverified — verify in task 11.1.
 
 ## Risks / Trade-offs
 
-- **[Risk] Telegram webhook drops on venue WiFi** → *Mitigation*: Support polling during development and provide ngrok/cloudflared tunnel configuration; prepare a cloud deploy option if needed.
-- **[Risk] Cold test from Mastra remote judge** → *Mitigation*: The state machine handles conversational chit-chat, unrecognized commands, and approximations without throwing unhandled exceptions.
-- **[Risk] Latency stacking from dual LLM calls (generation + guardrail)** → *Mitigation*: Use ultra-fast Nemotron model for guardrail; exempt templated messages from classification; cap regeneration at 2 attempts with a fixed fallback; stream or run evaluations asynchronously where channel adapters permit.
-- **[Risk] Unverified platform assumptions (Mastra Telegram channel adapter availability, exact Nebius model IDs)** → *Mitigation*: Task 1.2/1.3 verify both on day one; fallback is a thin Telegram Bot API polling loop feeding the Mastra agent, and the nearest available fast models on Nebius.
-- **[Risk] Static FX table drifts from market rates** → *Mitigation*: Rates are only used to normalise approximate ranges; the table is dated and the scorecard states that conversions are approximate.
+- **[Risk] ~40 questions is long for a chat interface** → *Mitigation*: reply keyboards for enum/yes-no fields, one-line prompts, progress marker per section ("Section C of H"), `/start` resumes a draft.
+- **[Risk] Telegram webhook drops on venue WiFi** → *Mitigation*: long polling during development; tunnel documented for webhooks.
+- **[Risk] Latency stacking (extraction + explanation + classifier)** → *Mitigation*: extraction only when a reply is not a keyboard option; explanation only for the three action-plan rules; templated text exempt from classification; cap regeneration at 2.
+- **[Risk] Unverified platform assumptions (Mastra Telegram adapter, Nebius model IDs, Galtea SDK)** → *Mitigation*: tasks 1.4, 1.5, 11.1 verify on day one; fallbacks recorded in Decisions 8–9.
+- **[Risk] Formula drift from v1 §5** → *Mitigation*: test cases A–D are the acceptance suite; no projection change merges without them passing.
+- **[Risk] Model rephrases `why` into advice or invents a number** → *Mitigation*: Decision 7 number check + classifier + library fallback; Galtea prompts target exactly this.

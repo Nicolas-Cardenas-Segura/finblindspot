@@ -1,26 +1,36 @@
 schema: spec-driven
 
 context: |
-  Financial Blindspot Detector: a Telegram agent that runs a ~10-minute
-  conversational financial checkup for internationally mobile professionals
-  and expats, then returns a deterministic Green/Amber/Red scorecard with the
-  user's top 3 blind spots.
+  Financial Blindspot Detector: a Telegram agent that walks internationally
+  mobile professionals and expats through the ~40-field v1 questionnaire,
+  runs a deterministic retirement projection and a twenty-rule blind-spot
+  engine, shows the top 3 blind spots from a static content library, and
+  stores an immutable assessment they can re-run in six months.
 
-  Tech stack: TypeScript / Node.js, @mastra/core (agent, memory, Telegram
-  channel), openai SDK against Nebius Token Factory
-  (https://api.tokenfactory.nebius.com/v1/), zod, local SQLite / in-memory
-  snapshot store, Vitest, Galtea for adversarial evaluation.
+  Source of truth for product content: finance-blind-spot-v1-spec.html at the
+  repo root (v1 master build document: fields, formulas, rules, copy, test
+  cases A-D). Nothing outside it is in scope; v2 items listed there stay out.
 
-  Models: deepseek-ai/DeepSeek-V4.1-Flash for the interview and extraction,
-  nvidia/Nemotron-3_5-Lightning for the outbound guardrail classifier.
+  Tech stack: TypeScript / Node.js, @mastra/core (agent), grammy or Mastra
+  Telegram transport, openai SDK against Nebius Token Factory
+  (https://api.tokenfactory.nebius.com/v1/), zod, better-sqlite3, Vitest,
+  Galtea for adversarial evaluation.
+
+  Models: deepseek-ai/DeepSeek-V4.1-Flash for answer extraction and
+  explanation, nvidia/Nemotron-3_5-Lightning for the outbound guardrail.
 
   Invariants every artifact must respect:
-  - Education only, never regulated financial advice (no product, ticker, or
-    provider recommendations); enforced by system prompt, deterministic
-    scoring, and an independent outbound classifier.
-  - All indicators and R/A/G thresholds are computed in pure TypeScript; the
-    LLM never calculates numbers or picks flag colors.
-  - Data minimization: ranges and estimates only, never credentials, account
+  - The AI never does the maths. Field IDs are the contract; the engine only
+    reads IDs. The model maps replies onto fields and rephrases library
+    "why" copy; nothing else.
+  - "I don't know" is null, never 0, and is itself a finding.
+  - Education only, never regulated financial advice (no product, provider,
+    transfer or allocation recommendations, no invented numbers); enforced
+    by system prompt, deterministic numbers and copy, and an independent
+    outbound classifier.
+  - Assessments are immutable; comparisons recompute both runs under the
+    current assumptions.
+  - Data minimization: approximate figures only, never credentials, account
     numbers, tax IDs, or passport numbers.
 
 # Portable artifact rules. These are project-agnostic: copy the `rules:` block
