@@ -2648,8 +2648,8 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -2682,8 +2682,10 @@
       "acceptance": [
         "both exit 0."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "clean clone + npm ci: typecheck exit 0, vitest 31 files / 195 tests pass"
+      ]
     },
     {
       "id": "14.3",
