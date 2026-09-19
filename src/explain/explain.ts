@@ -2,6 +2,7 @@ import type OpenAI from 'openai';
 import type { Assessment } from '../assess/assess.js';
 import type { GuardDeps } from '../guardrail/guard.js';
 import { guardedGenerate } from '../guardrail/guard.js';
+import { allowedNumbers, hasInventedNumber } from '../guardrail/numbers.js';
 import { MODELS } from '../llm/nebius.js';
 import { EXPLANATION_PROMPT, SYSTEM_PROMPT } from '../llm/prompts.js';
 import type { FiredRule } from '../rules/evaluate.js';
@@ -111,6 +112,16 @@ export async function explainBlindSpot(
   const fallback = fillPlaceholders(content.why, assessment.answers, assessment.results);
   const numbers = ruleNumbers(rule.rule_id, assessment);
   const prompt = EXPLANATION_PROMPT({ ...content, why: fallback }, numbers);
+  const allowed = allowedNumbers(
+    assessment.answers,
+    assessment.derived,
+    assessment.results,
+    fallback,
+  );
+  const guard: GuardDeps = {
+    ...deps.guard,
+    inventedNumber: (draft) => deps.guard.inventedNumber(draft) || hasInventedNumber(draft, allowed),
+  };
 
   const generated = await guardedGenerate(
     async () => {
@@ -126,7 +137,7 @@ export async function explainBlindSpot(
     },
     fallback,
     { userId: assessment.user_id },
-    deps.guard,
+    guard,
   );
 
   return generated.text;

@@ -12,11 +12,19 @@ function keyboard(options: string[]): Keyboard {
   return kb.oneTime();
 }
 
+let activeBot: Bot | null = null;
+
+export async function sendMessage(userId: string, text: string): Promise<void> {
+  if (activeBot === null) throw new Error('Telegram bot not started');
+  await activeBot.api.sendMessage(userId, text);
+}
+
 export async function startTelegram(
   token: string,
   onMessage: (m: Incoming) => Promise<Outgoing>,
 ): Promise<void> {
   const bot = new Bot(token);
+  activeBot = bot;
 
   bot.on('message:text', async (ctx) => {
     try {
