@@ -1,7 +1,7 @@
 {
   "version": 1,
   "change": "init-blindspot-agent",
-  "baseRevision": "a7465e46e978a7920c0947a0b2461f1720302f75",
+  "baseRevision": "777069c9e1bbadc3c9895c1341d88c95bc5ded8c",
   "budget": {
     "maxParallel": 8,
     "maxAttempts": 2,
@@ -1998,8 +1998,8 @@
       ],
       "risk": "medium",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "running",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
