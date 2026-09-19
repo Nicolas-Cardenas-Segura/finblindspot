@@ -1077,7 +1077,7 @@
       ],
       "risk": "low",
       "tier": "cheap",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
@@ -1114,8 +1114,10 @@
       "acceptance": [
         "`tests/assess/assess.test.ts` passes with `CASES.A` -> `results.position` within ±1 of 28501 and `blind_spots` does not contain `retirement_gap`; `CASES.D` -> contains `pension_timing_gap`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "7.2",
@@ -1126,8 +1128,8 @@
       ],
       "risk": "medium",
       "tier": "balanced",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 60000,
       "chargedTokens": 0,
       "reads": [
@@ -1168,8 +1170,10 @@
       "acceptance": [
         "`tests/assess/compare.test.ts` passes with: previous `BASE` with `cash_total 4000, pension_value null` vs current `BASE` -> `blind_spots_closed` contains `thin_emergency_fund` and `pension_visibility`, `unknowns_resolved` contains the pension value field, `emergency_months_change` within ±0.01 of `8.667`; previous stored with `investment_growth_rate 0.05` and current `0.06` -> `assumptions_changed true` and the previous side is recomputed (position differs from `previous.results.position`)."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "8.1",
@@ -1655,7 +1659,7 @@
       ],
       "risk": "medium",
       "tier": "cheap",
-      "status": "running",
+      "status": "done",
       "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
@@ -1690,8 +1694,10 @@
       "acceptance": [
         "`tests/explain/content.test.ts` (task 10.2) passes."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "10.2",
@@ -1704,8 +1710,8 @@
       ],
       "risk": "medium",
       "tier": "cheap",
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "estimatedTokens": 30000,
       "chargedTokens": 0,
       "reads": [
@@ -1741,8 +1747,10 @@
       "acceptance": [
         "`tests/explain/content.test.ts` passes asserting: 20 keys matching `RULES[i].id`; each `learn` has 2–3 items; `severity` and `topic` match `RULES`; no `learn` item or `ask` contains the words `transfer`, `consolidate`, `buy` or `switch`; every entry has exactly the seven fields; `fillPlaceholders` on rule 9 headline with `CASES.D` yields `\"You plan to retire at 65, and one of your pensions does not begin until 67.\"`."
       ],
-      "reviewed": false,
-      "evidence": []
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
     },
     {
       "id": "10.3",
