@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.mastra/
+dist/
+coverage/
+data/
+*.db
+*.db-*
+*.sqlite*
+src/mastra/public/
+.DS_Store
+*.tsbuildinfo

@@ -26,4 +26,26 @@ The system SHALL parse natural language user responses into a strongly-typed fin
 
 #### Scenario: Unsupported or sensitive data entered
 - **WHEN** user enters sensitive identification numbers or bank credentials
-- **THEN** the system rejects and strips the sensitive tokens and instructs the user that only ranges and estimates are required.
+- **THEN** the system rejects the input before model calls, persistent history or raw telemetry and supplies a classified explanation requesting ranges and estimates only.
+
+### Requirement: Quick and Full Resumable Paths
+The system SHALL offer a short partial assessment and a full interview covering the fifteen brief domains, preserving validated progress and allowing unknown values, skipping and corrections.
+
+#### Scenario: Short assessment selected
+- **WHEN** the user selects the quick path
+- **THEN** the bot collects country/base currency, take-home income, essential expenditure, accessible cash and debt payments one question at a time, with clarification when needed.
+
+#### Scenario: Correction or invalid extraction
+- **WHEN** an answer changes a previously supplied value or cannot be validated
+- **THEN** the system requests clarification/confirmation instead of silently overwriting known values or advancing past invalid data.
+
+#### Scenario: Process restarts
+- **WHEN** a user returns after the application restarts
+- **THEN** the next question is derived from their persisted validated progress.
+
+### Requirement: Private Assessments
+The system SHALL restrict personal assessment and report delivery to private conversations and derive ownership from verified transport identity rather than model output.
+
+#### Scenario: Another user's identifier supplied
+- **WHEN** a message or extracted patch contains another user's session identifier
+- **THEN** that identifier cannot grant access or change another assessment.

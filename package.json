@@ -1,0 +1,45 @@
+{
+  "name": "financial-blindspot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.23.2"
+  },
+  "scripts": {
+    "predev": "tsx scripts/prepare-data.ts",
+    "dev": "mastra dev",
+    "dev:web": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build:web": "vite build",
+    "build": "npm run build:web && mastra build",
+    "prestart": "tsx scripts/prepare-data.ts",
+    "start": "node --import dotenv/config .mastra/output/index.mjs",
+    "verify:models": "tsx scripts/verify-models.ts",
+    "verify:access": "tsx scripts/verify-access.ts",
+    "register:webhook": "tsx scripts/register-telegram-webhook.ts"
+  },
+  "dependencies": {
+    "@chat-adapter/telegram": "4.40.0",
+    "@libsql/client": "0.18.0",
+    "@mastra/core": "1.66.0",
+    "@mastra/libsql": "1.22.5",
+    "@mastra/memory": "1.29.0",
+    "dotenv": "17.4.2",
+    "openai": "7.15.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "mastra": "1.29.0",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.0"
+  }
+}

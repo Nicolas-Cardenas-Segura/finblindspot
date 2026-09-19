@@ -29,8 +29,30 @@ The system SHALL map each calculated indicator to a deterministic Green, Amber, 
 - **THEN** the system flags retirement visibility as Red or Amber based on the unverified count.
 
 ### Requirement: Top Blindspot Identification
-The system SHALL prioritize and rank the top 3 financial blind spots from the scored indicators.
+The system SHALL deterministically rank up to three supported financial flags or explicitly labelled data gaps, without inventing problems to fill the list.
 
 #### Scenario: Scorecard synthesis
 - **WHEN** all indicators are evaluated
-- **THEN** the system selects the highest-severity unaddressed indicators as the top three blind spots for user feedback.
+- **THEN** the system selects up to three highest-priority supported flags with stable tie-breaking, distinguishing missing assessment from a known financial condition.
+
+### Requirement: Comparable and Honest Inputs
+The system SHALL preserve ranges and distinguish zero, unknown, skipped and not-applicable data; it MUST NOT invent exchange rates, mix currencies or silently use midpoints.
+
+#### Scenario: Different currencies
+- **WHEN** a calculation requires summing or comparing amounts in different currencies
+- **THEN** the result is not assessed until the user supplies comparable approximate values.
+
+#### Scenario: Range crosses a scoring band
+- **WHEN** a valid calculated range spans multiple illustrative threshold bands
+- **THEN** the report displays the range and an uncertain/not-assessed status instead of a falsely precise colour.
+
+#### Scenario: Partial assessment
+- **WHEN** a short interview lacks pension or asset data
+- **THEN** those indicators remain not assessed and are never implicitly green.
+
+### Requirement: Transparent Illustrative Thresholds
+The system SHALL disclose that its versioned bands are educational product heuristics, not universal standards, and show the arithmetic and units behind each assessed result.
+
+#### Scenario: User views a report
+- **WHEN** a scored indicator is displayed
+- **THEN** its range, units, inputs, applicable bands and limitations are available in the read-only report.

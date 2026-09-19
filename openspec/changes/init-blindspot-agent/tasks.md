@@ -1,43 +1,43 @@
 # Tasks
 
-## 1. Project Initialization & Skeleton
+## 1. Foundation and Safe Live Pipeline
 
-- [ ] 1.1 Initialize Node.js TypeScript project, configure `tsconfig.json`, `.gitignore`, and add dependencies (`@mastra/core`, `openai`, `zod`, `dotenv`, `vitest`) and verify with `npm install` and `npm test`.
-- [ ] 1.2 Implement Nebius client integration using `openai` SDK pointing to `https://api.tokenfactory.nebius.com/v1/` and verify connectivity via a test model completion.
-- [ ] 1.3 Configure Mastra agent and Telegram channel adapter with a basic ping-pong test message and verify response reception on Telegram.
+- [x] 1.1 Set up pinned TypeScript dependencies, ignore rules, environment template and test/build commands; verify installation and a passing offline test.
+- [ ] 1.2 Configure Nebius model routing and strict classifier client; verify types plus authenticated catalogue/schema/tool/verdict smoke checks with synthetic data.
+- [x] 1.3 Configure private Mastra Telegram handlers with no pre-validation output and verified webhook secrets; verify real messages from a separate phone.
+- [ ] 1.4 Deploy one persistent Railway process with explicit volume paths; verify health, denied raw framework APIs and persisted state after restart.
+- [ ] 1.5 Configure authenticated Galtea init/message/finalize Endpoint Connections against the real turn pipeline; verify isolated multi-turn sessions without Telegram sends.
 
-## 2. Conversational Interview Machine & JSON Profile Extraction
+## 2. Profile and Deterministic Core
 
-- [ ] 2.1 Define strongly-typed Zod schemas for the user's financial profile covering demographics, expenditure, income, debt, assets, and cross-border pensions.
-- [ ] 2.2 Implement the multi-domain interview state machine in Mastra with tailored prompts for expat scenarios and verify step progression across domains.
-- [ ] 2.3 Implement LLM-driven structured extraction converting natural language user inputs into validated profile JSON and verify with test inputs.
-- [ ] 2.4 Add adaptive clarification turns for ambiguous or incomplete responses (e.g. unstated currencies or vague estimates) and verify conversational recovery.
+- [x] 2.1 Implement profile/patch schemas preserving currency, periods, ranges, unknown and skipped values; verify invalid and ambiguous-input tests.
+- [x] 2.2 Implement runway and debt indicators; verify zero denominators, ranges, currencies and annual/monthly normalisation.
+- [x] 2.3 Implement retirement visibility, concentration and cross-border complexity; verify incomplete data, no assets and unknown pensions.
+- [x] 2.4 Implement approved versioned illustrative thresholds and deterministic top-three ranking; verify exact boundaries and uncertainty bands.
+- [x] 2.5 Implement pure quick/full interview progression, corrections and report/comparison DTOs; verify transitions and comparable-only deltas.
 
-## 3. Pure Mathematical Calculation Engine & Unit Tests
+## 3. Safety, Persistence and Orchestration
 
-- [ ] 3.1 Implement pure calculation functions for Emergency Runway (cash / monthly expense) with zero-division handling and verify with Vitest.
-- [ ] 3.2 Implement pure calculation functions for Debt Exposure (debt service / income) and verify with unit tests.
-- [ ] 3.3 Implement Retirement Visibility scoring (tracking unknown pension pots, values, and retirement age) and verify with unit tests.
-- [ ] 3.4 Implement Asset Concentration and Cross-Border Complexity calculation functions and verify with unit tests covering edge cases.
+- [x] 3.1 Implement input policy, strict verdict parsing and fail-closed final delivery; verify malformed/block/timeout decisions and no unapproved output using offline protocol checks.
+- [x] 3.2 Implement persistent isolated profiles, state, immutable snapshots and turn deduplication; verify local storage/restart/isolation checks.
+- [ ] 3.3 Wire Mastra extraction and permitted tools into quick/full interviews; verify structured extraction, clarification and off-topic recovery against real Nebius.
+- [ ] 3.4 Implement deterministic report facts plus grounded educational explanations; verify factual references and real model advice-boundary cases.
+- [ ] 3.5 Implement revisit and labelled six-month simulation without baseline mutation; verify baseline/new snapshot comparison and real timestamps.
+- [x] 3.6 Implement retention, confirmed forget and expiring hashed report capabilities; verify revocation, isolation, deletion and framework/eval access controls.
 
-## 4. Threshold Rules Engine & Regulatory Advice Guardrail
+## 4. Evaluation and Read-only Dashboard
 
-- [ ] 4.1 Implement configurable threshold definitions and rules engine mapping calculated indicators to Green / Amber / Red status and selecting the top 3 blind spots.
-- [ ] 4.2 Write Vitest unit tests verifying threshold boundaries and blind spot prioritization order.
-- [ ] 4.3 Implement outbound explanation generation prompt ensuring the model only describes the deterministically computed indicators.
-- [ ] 4.4 Implement outbound Advice Guardrail classifier (`nvidia/Nemotron-3_5-Lightning`) blocking product mentions or buy/sell directives and verify with test fixtures.
+- [ ] 4.1 Run frozen Galtea security, factual and benign cases; retain genuine initial failures, fix causes and rerun identical cases with versioned sample/error counts.
+- [x] 4.2 Implement landing, protected report/arithmetic/comparison and public sanitised evidence pages; verify production build/deep links and no client-side scoring.
+- [ ] 4.3 Verify dashboard facts equal approved Telegram reports and private tokens expire/revoke; verify no real-user data or credentials in public evidence.
 
-## 5. Baseline Snapshot & Longitudinal Comparison
+## 5. Final Verification and Submission
 
-- [ ] 5.1 Implement local snapshot persistence saving completed profiles and indicator results with timestamps.
-- [ ] 5.2 Implement `/revisit` or simulated 6-month progress comparison workflow demonstrating delta changes between baseline and updated metrics.
+- [ ] 5.1 Update README with reproducible setup, controls, limitations, sponsor map and actual bot/evaluation information; verify cold-clone commands.
+- [x] 5.2 Run typecheck, unit tests, production build and strict OpenSpec validation; review security/privacy changes and staged secrets.
+- [ ] 5.3 Perform two-user cold-phone rehearsal, guardrail outage, restart and revisit tests on Railway; record genuine outcomes.
+- [ ] 5.4 Prepare demo recording, real submission form and required Galtea feedback survey; obtain approval before publishing/pushing/submitting and keep the bot live through judging.
 
-## 6. Galtea Adversarial Evaluation
+## External Gates
 
-- [ ] 6.1 Set up Galtea SDK test runner targeting the agent with adversarial prompts (attempting prompt injections to give advice or confuse currencies).
-- [ ] 6.2 Execute initial Galtea test run, document identified vulnerabilities, apply targeted prompt/guardrail mitigations, and rerun evaluation to capture before-and-after improvement metrics.
-
-## 7. Documentation & Final Verification
-
-- [ ] 7.1 Update `README.md` with clear cold-clone setup instructions, Telegram bot handle, architecture overview, and the required regulatory advice boundary disclosure.
-- [ ] 7.2 Run end-to-end rehearsal simulating a cold user conversation on Telegram from welcome greeting to final scorecard and revisited snapshot.
+Credentials and hosting access are supplied securely by the user and are never committed. Nebius smoke checks and initial Telegram phone messages have passed; complete interview/revisit verification, Railway deployment and Galtea evaluation remain open. The supplied Miro journey image has been reviewed; post-report Q&A and explicit handling of ambiguous currency answers remain implementation gaps. The README now documents macOS installation and local testing, but cold-clone/live verification is not claimed complete. Norma is an optional scan/fix/rescan after core verification; Make is deferred. No task is complete merely because a local implementation exists.

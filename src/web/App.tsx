@@ -1,0 +1,52 @@
+import { useEffect, useState } from 'react';
+import type { Report, reportDetails } from '../core/report';
+
+type ReportData = { report: Report; cards: ReturnType<typeof reportDetails>; text: string };
+type PublicConfig = { botUsername: string | null; retentionDays: number };
+type Evidence = { status: string; runs: { label: string; version: string; cases: number; passed: number; errors: number }[]; note: string };
+const displayStatus = (value: string) => value.replaceAll('_', ' ');
+
+function useResource<T>(path: string) {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    setData(null); setError(false);
+    fetch(path, { signal: controller.signal, cache: 'no-store', referrerPolicy: 'no-referrer' }).then(response => {
+      if (!response.ok) throw new Error('unavailable');
+      return response.json();
+    }).then(setData).catch(error => { if (error.name !== 'AbortError') setError(true); });
+    return () => controller.abort();
+  }, [path]);
+  return { data, error };
+}
+function TelegramLink({ config }: { config: PublicConfig | null }) {
+  return config?.botUsername ? <a className="button" href={`https://t.me/${config.botUsername}`} rel="noreferrer">Start your check on Telegram <span aria-hidden="true">↗</span></a> : <span className="button disabled">Telegram setup pending</span>;
+}
+function Landing({ config }: { config: PublicConfig | null }) {
+  return <>
+    <section className="hero">
+      <div className="hero-copy"><p className="eyebrow">A clearer picture, wherever life takes you</p><h1>See what<br />you're <em>missing.</em></h1><p className="lead">Income here. A pension there. Savings in another currency. Understand the gaps between them — without another spreadsheet.</p><TelegramLink config={config} /><p className="caption">A conversation, not a connection to your bank.</p></div>
+      <div className="method-card"><div className="card-top"><span className="small-label">YOUR FINANCIAL PICTURE</span><span className="private-label">Private by design</span></div><h2>Five lenses.<br />One clearer view.</h2><div className="lenses">{[['01', 'Emergency runway', 'Cash relative to essential expenses'], ['02', 'Debt exposure', 'Payments relative to take-home income'], ['03', 'Retirement visibility', 'What is known about your pensions'], ['04', 'Asset concentration', 'How reported categories are distributed'], ['05', 'Cross-border complexity', 'Jurisdictions, currencies and unknowns']].map(([number, name, detail]) => <div className="lens" key={number}><span className="lens-number">{number}</span><div><strong>{name}</strong><p>{detail}</p></div></div>)}</div><p className="card-note">Missing data stays missing. We never turn an unknown into a reassuring green.</p></div>
+    </section>
+    <section className="strip"><p>Made for lives that cross borders.</p><div><span>No bank login</span><span>No product recommendations</span><span>Your estimates are enough</span></div></section>
+    <section className="section" id="how-it-works"><p className="eyebrow">HOW IT WORKS</p><h2>Conversation for context.<br />Code for the facts.</h2><div className="steps">{[['01', 'Tell us a little', 'Choose a quick partial check or a fuller conversation. One question at a time; unknown is a valid answer.'], ['02', 'See the arithmetic', 'Plain code computes your indicators. Every colour has a visible, illustrative threshold — not a model’s guess.'], ['03', 'Understand the gaps', 'Get up to three supported flags or information gaps, explained without telling you what to buy or where to move money.'], ['04', 'Come back with context', 'Revisit within the retention window to compare your updated picture with an immutable baseline.']].map(([number, title, copy]) => <article className="step" key={number}><span className="step-number">{number}</span><h3>{title}</h3><p>{copy}</p></article>)}</div></section>
+    <section className="boundary"><div><p className="eyebrow">A BOUNDARY, NOT A FOOTNOTE</p><h2>Education.<br />Never investment instructions.</h2></div><div><p>Every bot response must pass an independent advice classifier before it is sent. If the check fails or is unavailable, the response is withheld.</p><p>Reported figures and colours come from deterministic code. Thresholds are illustrative product heuristics, not universal financial standards or a legal certification.</p><a className="text-link" href="/evidence">Read the evaluation evidence <span aria-hidden="true">→</span></a></div></section>
+  </>;
+}
+function ReportPage({ token }: { token: string }) {
+  const { data, error } = useResource<ReportData>(`/api/reports/${encodeURIComponent(token)}`);
+  if (error) return <section className="empty"><p className="eyebrow">PRIVATE REPORT</p><h1>This link is unavailable.</h1><p>It may have expired or been revoked. Request a fresh report from your Telegram conversation.</p><a className="text-link" href="/">Back to Financial Blindspot</a></section>;
+  if (!data) return <section className="empty" role="status"><h2>Loading your private report…</h2></section>;
+  return <section className="section report"><p className="eyebrow">YOUR FINANCIAL VISIBILITY CHECK</p><h1>The picture.<br /><em>And the gaps.</em></h1><p className="lead">Self-reported estimates · {new Date(data.report.createdAt).toLocaleDateString('en-GB')} · {data.report.currency ?? 'Currency not specified'}</p>{data.report.simulation && <p className="notice">Six-month demonstration. These are actual assessment dates, not a claim that six months elapsed.</p>}<div className="report-grid">{data.cards.map(card => <article className={`metric ${card.status}`} key={card.id}><div className="metric-heading"><h2>{card.title}</h2><span className={`badge ${card.status}`}>{displayStatus(card.status)}</span></div><p className="metric-value">{card.display}</p><p>{card.explanation}</p>{card.reason !== 'calculated' && <p className="reason">{displayStatus(card.reason)}</p>}<details><summary>Show the inputs and thresholds</summary><ul>{card.inputs.length ? card.inputs.map((input, i) => <li key={i}>{input}</li>) : <li>There is not enough comparable information to calculate this indicator.</li>}</ul><p>{card.thresholds}</p></details></article>)}</div><section className="report-priorities"><p className="eyebrow">WHAT STANDS OUT</p><h2>{data.report.blindspots.length ? 'Your first areas of visibility' : 'No supported flags in the assessed indicators'}</h2><ol>{data.report.blindspots.map(id => { const card = data.cards.find(c => c.id === id)!; return <li key={id}><strong>{card.title}</strong><span>{card.status === 'not_assessed' ? 'A data gap or uncertain range, not an established financial problem.' : card.explanation}</span></li>; })}</ol></section>{!!data.report.comparison?.length && <section className="comparison"><p className="eyebrow">THEN VERSUS NOW</p><h2>Compared with your baseline</h2><p>{data.report.baselineAt ? new Date(data.report.baselineAt).toLocaleDateString('en-GB') : ''}</p><div className="table-wrap"><table><thead><tr><th>Indicator</th><th>Before</th><th>Now</th><th>Change</th></tr></thead><tbody>{data.report.comparison.map(change => <tr key={change.id}><td>{data.cards.find(c => c.id === change.id)?.title}</td><td>{displayStatus(change.before)}</td><td>{displayStatus(change.after)}</td><td>{change.delta === null ? 'Not comparable' : `${change.delta > 0 ? '+' : ''}${change.delta.toLocaleString('en-GB', { maximumFractionDigits: 2 })} ${change.unit}`}</td></tr>)}</tbody></table></div></section>}<p className="notice">{data.report.limitation} Rules version: {data.report.rulesVersion}. Anyone with this private link can read the report until expiry. Use /forget in Telegram to revoke it and delete your application data.</p></section>;
+}
+function EvidencePage() {
+  const { data, error } = useResource<Evidence>('/api/public/evidence');
+  return <section className="section evidence"><p className="eyebrow">FIND. FIX. VERIFY.</p><h1>Evidence over<br /><em>assurances.</em></h1><p className="lead">A guardrail is a testable claim. This page records actual evaluation outcomes, including failures and infrastructure errors.</p><div className="evidence-panel"><span className="badge not_assessed">{data?.status === 'not_run' ? 'Evaluation pending' : error ? 'Evidence unavailable' : 'Evaluation status'}</span><h2>{data?.note ?? (error ? 'We could not load evaluation evidence.' : 'Loading evaluation evidence…')}</h2><p>No before/after percentage is shown until a real Galtea run has completed. Offline unit tests are not presented as model-quality evidence.</p>{data?.runs.map(run => <article key={run.version}><h3>{run.label}</h3><p>{run.cases} cases · {run.passed} passed · {run.errors} infrastructure errors</p><p>Version: {run.version}</p></article>)}</div><div className="steps"><article className="step"><h3>Advice boundaries</h3><p>Direct requests, role changes and obfuscated instructions must not turn education into product or allocation recommendations.</p></article><article className="step"><h3>Factual reliability</h3><p>Missing pensions, ambiguous ranges and different currencies must not become invented facts or confident conclusions.</p></article><article className="step"><h3>Useful conversations</h3><p>Benign questions and interrupted interviews still need to work. Refusing everything is not a successful result.</p></article></div></section>;
+}
+export function App() {
+  const { data: config } = useResource<PublicConfig>('/api/public/config');
+  const path = window.location.pathname;
+  const report = path.match(/^\/r\/([A-Za-z0-9_-]+)$/);
+  return <><header className="site-header"><a className="brand" href="/" aria-label="Financial Blindspot home"><span className="brand-mark" aria-hidden="true">b.</span><span>financial<br /><strong>blindspot</strong></span></a><nav aria-label="Main navigation"><a href="/#how-it-works">How it works</a><a href="/evidence">The evidence</a><span className="nav-label">Education, not advice</span></nav></header><main>{report ? <ReportPage token={report[1]} /> : path === '/evidence' ? <EvidencePage /> : path === '/' || path === '/how-it-works' ? <Landing config={config} /> : <section className="empty"><h1>Page not found.</h1><a href="/">Back home</a></section>}</main><footer><div><strong>financial blindspot</strong><p>A little more clarity. No financial recommendations.</p></div><div><p>Built with Mastra · Nebius · Galtea</p><p>HackBarna 2026 · Educational prototype</p></div></footer></>;
+}
