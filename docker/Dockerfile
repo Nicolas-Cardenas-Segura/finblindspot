@@ -46,6 +46,14 @@ RUN npm install -g \
     tsx \
     typescript
 
+# Install Google Antigravity CLI binary
+RUN curl -fsSL https://antigravity.google/cli/install.sh | bash -s -- -d /usr/local/bin \
+    && chmod +x /usr/local/bin/agy 2>/dev/null || true
+
+# Configure Git safe.directory system-wide to prevent dubious ownership issues on mounted volumes
+RUN git config --system --add safe.directory /workspace \
+    && git config --system --add safe.directory '*'
+
 # Create workspace and configuration mount points with proper ownership
 RUN mkdir -p /workspace \
     /home/${USERNAME}/.npm-global \
