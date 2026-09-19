@@ -1,12 +1,12 @@
-import { DEFAULT_ASSUMPTIONS } from "../config/assumptions.js";
-import { FIELDS, PENSION_FIELDS } from "../questionnaire/fields.js";
-import type { FieldDef } from "../questionnaire/fields.js";
+import { DEFAULT_ASSUMPTIONS } from '../config/assumptions.js';
+import { FIELDS, PENSION_FIELDS } from '../questionnaire/fields.js';
+import type { FieldDef } from '../questionnaire/fields.js';
 import type {
   Answers,
   Assumptions,
   FieldId,
   PensionRow,
-} from "../questionnaire/schema.js";
+} from '../questionnaire/schema.js';
 
 export interface InterviewState {
   userId: string;
@@ -16,7 +16,7 @@ export interface InterviewState {
   fieldIndex: number;
   pensionFieldIndex?: number;
   retries: number;
-  mode: "assess" | "revisit";
+  mode: 'assess' | 'revisit';
   prefill?: Answers;
   complete: boolean;
   awaitingNudgeChoice?: boolean;
@@ -25,12 +25,12 @@ export interface InterviewState {
 const ANOTHER_PENSION_INDEX = -1;
 
 export const ANOTHER_PENSION_FIELD: FieldDef = {
-  id: "pensions",
-  section: "D",
-  prompt: "Another pension?",
-  rationale: "Lets you add every pension you hold, one at a time.",
-  type: "enum",
-  options: ["yes", "no"],
+  id: 'pensions',
+  section: 'D',
+  prompt: 'Another pension?',
+  rationale: 'Lets you add every pension you hold, one at a time.',
+  type: 'enum',
+  options: ['yes', 'no'],
   allowUnknown: false,
 };
 
@@ -46,7 +46,7 @@ function skipHidden(s: InterviewState): InterviewState {
   while (i < FIELDS.length) {
     const f = FIELDS[i]!;
     if (!f.showIf || f.showIf(answers as Partial<Answers>)) break;
-    answers[f.id] = "n/a";
+    answers[f.id] = 'n/a';
     i += 1;
   }
   return {
@@ -68,7 +68,7 @@ export function createState(userId: string): InterviewState {
     assumptions: { ...DEFAULT_ASSUMPTIONS },
     fieldIndex: 0,
     retries: 0,
-    mode: "assess",
+    mode: 'assess',
     complete: false,
   });
 }
@@ -76,7 +76,7 @@ export function createState(userId: string): InterviewState {
 export function currentField(s: InterviewState): FieldDef | null {
   if (s.complete || s.fieldIndex >= FIELDS.length) return null;
   const f = FIELDS[s.fieldIndex]!;
-  if (f.id === "beneficiaries_named" && inPensionPhase(s)) {
+  if (f.id === 'beneficiaries_named' && inPensionPhase(s)) {
     if (s.pensionFieldIndex === ANOTHER_PENSION_INDEX)
       return ANOTHER_PENSION_FIELD;
     return PENSION_FIELDS[s.pensionFieldIndex ?? 0]!;
@@ -88,8 +88,8 @@ export function applyAnswer(s: InterviewState, value: unknown): InterviewState {
   const f = currentField(s);
   if (!f) return s;
 
-  if (f.id === "pensions") {
-    if (value === "yes")
+  if (f.id === 'pensions') {
+    if (value === 'yes')
       return { ...s, pensionDraft: {}, pensionFieldIndex: 0 };
     const { pensionDraft: _draft, pensionFieldIndex: _idx, ...rest } = s;
     return {
@@ -98,7 +98,7 @@ export function applyAnswer(s: InterviewState, value: unknown): InterviewState {
     };
   }
 
-  if (f.repeat === "pensions") {
+  if (f.repeat === 'pensions') {
     const idx = s.pensionFieldIndex ?? 0;
     const draft = {
       ...(s.pensionDraft ?? {}),
@@ -118,7 +118,7 @@ export function applyAnswer(s: InterviewState, value: unknown): InterviewState {
 
   if (isAssumptionId(f.id)) {
     const assumptions =
-      typeof value === "number"
+      typeof value === 'number'
         ? { ...s.assumptions, [f.id]: value }
         : s.assumptions;
     return skipHidden({
@@ -144,7 +144,7 @@ export function applyCorrection(
   value: unknown,
 ): InterviewState {
   if (isAssumptionId(fieldId)) {
-    if (typeof value !== "number")
+    if (typeof value !== 'number')
       throw new Error(`Invalid assumption value for ${fieldId}`);
     return { ...s, assumptions: { ...s.assumptions, [fieldId]: value } };
   }
