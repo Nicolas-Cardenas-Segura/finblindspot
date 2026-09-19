@@ -54,9 +54,43 @@ This project follows [OpenSpec](https://github.com/openspec/openspec) to maintai
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started & Docker Sandbox
 
-*Environment configuration and setup instructions will be finalized in Phase 1 of the implementation plan.*
+### Running with Auto-Approval Agents (Claude Code & Antigravity)
+
+To safely execute autonomous coding agents with full tool auto-approval (`--dangerously-skip-permissions` in Claude Code or auto-approval in Google Antigravity `agy`), this branch includes a containerized development sandbox.
+
+#### Security Guarantees:
+- **Capability Dropping**: Drops all Linux capabilities (`cap_drop: [ALL]`) and forbids privilege escalation (`no-new-privileges:true`).
+- **Host Permission Alignment**: Dynamically mirrors host user UID/GID (`$(id -u):$(id -g)`) so files generated inside the container retain proper host permissions without `root` ownership conflicts.
+- **Credential Protection**: Mounts host Git identity (`~/.gitconfig`) strictly read-only, while isolating host home directories, SSH keys, and cloud configurations.
+- **Network Boundaries**: Pre-configured agent rules in [`.agents/rules/sandbox.md`](.agents/rules/sandbox.md) prohibit scanning internal RFC 1918 private subnets.
+
+#### Quickstart:
+1. **Configure Environment**:
+   ```bash
+   cp docker/.env.docker.example .env
+   ```
+2. **Build Sandbox Container**:
+   ```bash
+   make build
+   ```
+3. **Launch Auto-Approval Agents**:
+   ```bash
+   # Run Claude Code with auto-approval in sandbox
+   make claude
+
+   # Run Google Antigravity CLI in sandbox
+   make agy
+
+   # Run OpenSpec commands
+   make openspec ARGS="status"
+
+   # Open interactive sandbox bash shell
+   make shell
+   ```
+
+*For more details on the container setup, see [docker/README.md](docker/README.md).*
 
 ---
 

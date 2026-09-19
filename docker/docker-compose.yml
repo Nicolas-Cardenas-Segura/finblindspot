@@ -1,0 +1,47 @@
+services:
+  agent-sandbox:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        USER_ID: ${HOST_UID:-1000}
+        GROUP_ID: ${HOST_GID:-1000}
+        USERNAME: sandbox
+    image: findblindspot-sandbox:latest
+    container_name: findblindspot-agent-sandbox
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    
+    # Security Hardening
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+
+    # Secrets and environment configuration
+    env_file:
+      - path: ../.env
+        required: false
+      - path: .env.docker
+        required: false
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - NEBIUS_API_KEY=${NEBIUS_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - GALTEA_API_KEY=${GALTEA_API_KEY:-}
+      - TERM=xterm-256color
+
+    # Workspace & credential volumes
+    volumes:
+      # Mount repository code
+      - ..:/workspace:rw
+      # Mount git identity (read-only for authorship, no credential leakage)
+      - ${HOME}/.gitconfig:/home/sandbox/.gitconfig:ro
+      # Mount cached auth profiles if present on host
+      - ${HOME}/.gemini:/home/sandbox/.gemini:rw
+      - ${HOME}/.claude:/home/sandbox/.claude:rw
+      - ${HOME}/.claude.json:/home/sandbox/.claude.json:rw
