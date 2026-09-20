@@ -1,5 +1,8 @@
 import type { Verdict } from './classifier.js';
 import type { ComplianceTrigger } from '../store/db.js';
+import { createLogger } from '../log/logger.js';
+
+const log = createLogger('guard');
 
 export interface GuardDeps {
   classify: (t: string) => Promise<Verdict>;
@@ -18,8 +21,10 @@ export async function guardedGenerate(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const draft = await generate(attempt);
+    log.debug('draft generated', { userId: ctx.userId, attempt, maxAttempts, draft });
 
     if (deps.inventedNumber(draft)) {
+      log.warn('draft BLOCKED: invented number', { userId: ctx.userId, attempt, draft });
       deps.logTrigger({
         userId: ctx.userId,
         createdAt: new Date().toISOString(),
@@ -31,7 +36,10 @@ export async function guardedGenerate(
       continue;
     }
 
-    if ((await deps.classify(draft)) === 'BLOCK') {
+    const verdict = await deps.classify(draft);
+    log.debug('classifier verdict', { userId: ctx.userId, attempt, verdict });
+    if (verdict === 'BLOCK') {
+      log.warn('draft BLOCKED: classifier', { userId: ctx.userId, attempt, draft });
       deps.logTrigger({
         userId: ctx.userId,
         createdAt: new Date().toISOString(),
@@ -46,5 +54,6 @@ export async function guardedGenerate(
     return { text: draft, attempts: attempt, fellBack: false };
   }
 
+  log.warn('all attempts blocked → static fallback', { userId: ctx.userId, maxAttempts, fallback });
   return { text: fallback, attempts: maxAttempts, fellBack: true };
 }

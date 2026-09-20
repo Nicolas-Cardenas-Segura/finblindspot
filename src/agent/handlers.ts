@@ -21,8 +21,9 @@ import {
   isComplete,
 } from '../interview/stateMachine.js';
 import { createRevisitState } from '../interview/revisit.js';
-import { MODELS } from '../llm/nebius.js';
+import { MODELS, chatText } from '../llm/nebius.js';
 import { SYSTEM_PROMPT } from '../llm/prompts.js';
+import { createLogger, errorData } from '../log/logger.js';
 import { dueAt } from '../nudge/scheduler.js';
 import { redactSensitive } from '../privacy/sensitiveFilter.js';
 import type { FieldDef } from '../questionnaire/fields.js';
@@ -60,6 +61,33 @@ const HELP =
 const NUDGE_QUESTION = 'Remind you in 6 or 12 months? (6 / 12 / no)';
 
 const NUDGE_OPTIONS = ['6', '12', 'no'];
+
+const log = createLogger('handler');
+
+function stateSummary(s: InterviewState | undefined): Record<string, unknown> | undefined {
+  if (s === undefined) return undefined;
+  return {
+    mode: s.mode,
+    fieldIndex: s.fieldIndex,
+    field: currentField(s)?.id ?? null,
+    pensionFieldIndex: s.pensionFieldIndex,
+    pensionDraft: s.pensionDraft,
+    retries: s.retries,
+    complete: s.complete,
+    awaitingNudgeChoice: s.awaitingNudgeChoice,
+    answered: Object.keys(s.answers).length,
+  };
+}
+
+function transition(label: string, before: InterviewState, after: InterviewState, extra?: Record<string, unknown>): void {
+  log.debug(label, {
+    ...extra,
+    from: stateSummary(before),
+    to: stateSummary(after),
+    answers: after.answers,
+    assumptions: after.assumptions,
+  });
+}
 
 function optionsFor(f: FieldDef): string[] | undefined {
   if (f.options !== undefined && f.options.length > 0) {
@@ -99,24 +127,27 @@ async function rephraseRationale(
   deps: HandlerDeps,
 ): Promise<string> {
   const generated = await guardedGenerate(
-    async () => {
-      const response = await deps.llm.chat.completions.create({
-        model: MODELS.interview,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          {
-            role: 'user',
-            content: `The user asked why we ask "${field.prompt}". Rephrase this reason in one or two sentences, adding nothing new: ${field.rationale}`,
-          },
-        ],
-        temperature: 0.3,
-      });
-      return response.choices[0]?.message?.content?.trim() ?? '';
-    },
+    () =>
+      chatText(
+        deps.llm,
+        {
+          model: MODELS.interview,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            {
+              role: 'user',
+              content: `The user asked why we ask "${field.prompt}". Rephrase this reason in one or two sentences, adding nothing new: ${field.rationale}`,
+            },
+          ],
+          temperature: 0.3,
+        },
+        `rationale ${field.id}`,
+      ),
     field.rationale,
     { userId: msg.userId },
     deps.guard,
   );
+  log.debug('rationale generated', { field: field.id, attempts: generated.attempts, fellBack: generated.fellBack });
   return generated.text.trim() === '' ? field.rationale : generated.text;
 }
 
@@ -140,6 +171,21 @@ async function complete(
 
   const previous = state.mode === 'revisit' ? deps.store.latestComplete(msg.userId) : undefined;
 
+  log.info('interview complete → assessment computed', {
+    userId: msg.userId,
+    assessmentId: assessment.id,
+    mode: state.mode,
+    previousId: previous?.id,
+    fired: assessment.blind_spots.map((b) => `${b.rule_id}:${b.severity}`),
+  });
+  log.debug('assessment detail', {
+    answers: assessment.answers,
+    assumptions: assessment.assumptions,
+    derived: assessment.derived,
+    results: assessment.results,
+    blind_spots: assessment.blind_spots,
+  });
+
   deps.store.insertAssessment(assessment);
   deps.store.cancelPendingNudges(msg.userId, now.toISOString());
   deps.store.clearState(msg.userId);
@@ -155,7 +201,9 @@ async function complete(
   });
 
   const whys: Record<RuleId, string> = {} as Record<RuleId, string>;
-  for (const fired of selectActionPlan(assessment.blind_spots)) {
+  const plan = selectActionPlan(assessment.blind_spots);
+  log.debug('action plan selected', { plan: plan.map((f) => `${f.rule_id}:${f.severity}`) });
+  for (const fired of plan) {
     whys[fired.rule_id] = await explainBlindSpot(fired, assessment, {
       client: deps.llm,
       guard: deps.guard,
@@ -164,7 +212,9 @@ async function complete(
 
   const parts = [renderResults(assessment), renderActionPlan(assessment, whys)];
   if (previous !== undefined) {
-    parts.push(renderProgress(previous, assessment, compare(previous, assessment)));
+    const delta = compare(previous, assessment);
+    log.debug('comparison with previous assessment', { previousId: previous.id, delta });
+    parts.push(renderProgress(previous, assessment, delta));
   }
   parts.push(NUDGE_QUESTION);
 
@@ -175,6 +225,7 @@ function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outg
   const now = (deps.now ?? (() => new Date()))();
   const months = text.trim() === '6' ? 6 : text.trim() === '12' ? 12 : null;
   deps.store.clearState(msg.userId);
+  log.debug('nudge choice', { userId: msg.userId, text, months });
 
   if (months === null) {
     return { text: 'No reminder then. Send /revisit whenever you want to update your picture.' };
@@ -182,10 +233,18 @@ function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outg
 
   const assessment = deps.store.latestComplete(msg.userId);
   if (assessment === undefined) {
+    log.warn('nudge requested but no complete assessment found', { userId: msg.userId });
     return { text: 'No reminder then. Send /revisit whenever you want to update your picture.' };
   }
 
   const due = dueAt(now, months, deps.nudgeDemoMinutes);
+  log.info('nudge scheduled', {
+    userId: msg.userId,
+    assessmentId: assessment.id,
+    months,
+    dueAt: due.toISOString(),
+    demoMinutes: deps.nudgeDemoMinutes,
+  });
   deps.store.insertNudge({
     id: crypto.randomUUID(),
     userId: msg.userId,
@@ -198,9 +257,11 @@ function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outg
 }
 
 function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgoing {
+  log.debug('command', { userId: msg.userId, command });
   if (command === '/start') {
     const state = deps.store.loadState(msg.userId);
     if (state !== undefined && !state.complete) {
+      log.debug('/start with draft in progress → resume/restart prompt', { state: stateSummary(state) });
       return {
         text: 'You have an assessment in progress. Reply "resume" to carry on where you left off, or "restart" to start again.',
         options: ['resume', 'restart'],
@@ -219,6 +280,7 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
     }
     const state = createRevisitState(msg.userId, previous);
     deps.store.saveState(state);
+    log.debug('/revisit state created', { previousId: previous.id, order: state.order, state: stateSummary(state) });
     return askCurrent(
       state,
       'Let us update your picture. Reply "same" to keep an answer, or send a new value.',
@@ -227,6 +289,7 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
 
   if (command === '/forget') {
     const counts = deps.store.deleteUser(msg.userId);
+    log.info('/forget executed', { userId: msg.userId, ...counts });
     return {
       text: `Deleted ${counts.assessments} assessments, ${counts.states} drafts, ${counts.nudges} reminders and ${counts.triggers} logged messages. Nothing about you is left.`,
     };
@@ -243,6 +306,7 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
   }
 
   const stored = deps.store.loadState(msg.userId);
+  log.debug('state loaded', { userId: msg.userId, state: stateSummary(stored) });
 
   if (stored !== undefined && stored.awaitingNudgeChoice === true) {
     return handleNudgeChoice(trimmed, msg, deps);
@@ -250,10 +314,13 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
 
   if (stored === undefined) {
     if (/^(yes|y)$/i.test(trimmed)) {
-      const state = applyAnswer(createState(msg.userId), 'yes');
+      const fresh = createState(msg.userId);
+      const state = applyAnswer(fresh, 'yes');
       deps.store.saveState(state);
+      transition('consent given → interview started', fresh, state);
       return askCurrent(state);
     }
+    log.debug('no state and no consent → consent prompt', { userId: msg.userId });
     return {
       text: 'Consent is required before we start. Reply YES to continue, or /start to read it again.',
       options: ['YES'],
@@ -262,25 +329,32 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
 
   if (/^restart$/i.test(trimmed)) {
     deps.store.clearState(msg.userId);
+    log.debug('restart → state cleared', { userId: msg.userId });
     return { text: renderConsent(), options: ['YES'] };
   }
 
   if (/^resume$/i.test(trimmed)) {
+    log.debug('resume → re-ask current field', { field: currentField(stored)?.id });
     return askCurrent(stored);
   }
 
   const field = currentField(stored);
   if (field === null) {
+    log.warn('stored state has no current field → clearing', { state: stateSummary(stored) });
     deps.store.clearState(msg.userId);
     return { text: HELP };
   }
 
   const redaction = redactSensitive(trimmed);
   const reminder = redaction.redacted ? SENSITIVE_REMINDER : undefined;
+  if (redaction.redacted) {
+    log.warn('sensitive input redacted before model call', { userId: msg.userId, redactedText: redaction.text });
+  }
 
   if (stored.mode === 'revisit' && /^same$/i.test(redaction.text)) {
     const next = applyAnswer(stored, 'same');
     deps.store.saveState(next);
+    transition('revisit "same" → kept previous value', stored, next, { field: field.id });
     return isComplete(next) ? complete(next, msg, deps) : askCurrent(next, reminder);
   }
 
@@ -299,10 +373,12 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
     const value = intent.kind === 'answer' ? intent.value : null;
     const next = applyAnswer(stored, value);
     deps.store.saveState(next);
+    transition(`${intent.kind} → stored ${field.id}`, stored, next, { field: field.id, value });
     return isComplete(next) ? complete(next, msg, deps) : askCurrent(next, reminder);
   }
 
   if (intent.kind === 'skip_request') {
+    log.debug('skip refused: field is required', { field: field.id });
     return askCurrent(stored, [reminder, 'This one is needed to work out your position.'].filter(Boolean).join('\n\n'));
   }
 
@@ -310,13 +386,15 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
     try {
       const next = applyCorrection(stored, intent.fieldId, intent.value);
       deps.store.saveState(next);
+      transition('correction applied', stored, next, { fieldId: intent.fieldId, value: intent.value });
       return askCurrent(
         next,
         [reminder, `Updated "${promptFor(intent.fieldId)}" to ${showValue(intent.value)}.`]
           .filter(Boolean)
           .join('\n\n'),
       );
-    } catch {
+    } catch (error) {
+      log.warn('correction rejected → re-ask current field', { fieldId: intent.fieldId, ...errorData(error) });
       return askCurrent(stored, reminder);
     }
   }
@@ -329,6 +407,7 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
   const retries = stored.retries + 1;
   const next = { ...stored, retries };
   deps.store.saveState(next);
+  log.debug('off-topic → redirect', { field: field.id, retries });
   const redirect =
     retries >= 2
       ? "Let us stay with the assessment. You can reply 'don't know' to skip this one."

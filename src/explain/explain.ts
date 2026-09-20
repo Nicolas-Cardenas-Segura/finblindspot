@@ -3,11 +3,14 @@ import type { Assessment } from '../assess/assess.js';
 import type { GuardDeps } from '../guardrail/guard.js';
 import { guardedGenerate } from '../guardrail/guard.js';
 import { allowedNumbers, hasInventedNumber } from '../guardrail/numbers.js';
-import { MODELS } from '../llm/nebius.js';
+import { MODELS, chatText } from '../llm/nebius.js';
 import { EXPLANATION_PROMPT, SYSTEM_PROMPT } from '../llm/prompts.js';
+import { createLogger } from '../log/logger.js';
 import type { FiredRule } from '../rules/evaluate.js';
 import type { RuleId } from '../rules/rules.js';
 import { fillPlaceholders, loadContent } from './content.js';
+
+const log = createLogger('explain');
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;
@@ -118,27 +121,42 @@ export async function explainBlindSpot(
     assessment.results,
     fallback,
   );
+  log.debug('explaining blind spot', {
+    rule: rule.rule_id,
+    severity: rule.severity,
+    numbers,
+    allowedNumbers: [...allowed],
+    fallback,
+  });
   const guard: GuardDeps = {
     ...deps.guard,
     inventedNumber: (draft) => deps.guard.inventedNumber(draft) || hasInventedNumber(draft, allowed),
   };
 
   const generated = await guardedGenerate(
-    async () => {
-      const response = await deps.client.chat.completions.create({
-        model: MODELS.interview,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.3,
-      });
-      return response.choices[0]?.message?.content?.trim() ?? '';
-    },
+    () =>
+      chatText(
+        deps.client,
+        {
+          model: MODELS.interview,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+        },
+        `explain ${rule.rule_id}`,
+      ),
     fallback,
     { userId: assessment.user_id },
     guard,
   );
 
+  log.debug('explanation chosen', {
+    rule: rule.rule_id,
+    attempts: generated.attempts,
+    fellBack: generated.fellBack,
+    text: generated.text,
+  });
   return generated.text;
 }

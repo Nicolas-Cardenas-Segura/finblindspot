@@ -7,14 +7,31 @@ import { sendMessage, startTelegram } from './agent/telegram.js';
 import { loadEnv } from './config/env.js';
 import { classifyOutbound } from './guardrail/classifier.js';
 import { createNebiusClient } from './llm/nebius.js';
+import { createLogger, errorData, setLogLevel } from './log/logger.js';
 import { startNudgeScheduler } from './nudge/scheduler.js';
 import { openStore } from './store/db.js';
 
+const log = createLogger('main');
+
 async function main(): Promise<void> {
   const env = loadEnv();
+  setLogLevel(env.LOG_LEVEL);
+  log.info('starting finblindspot', {
+    logLevel: env.LOG_LEVEL,
+    databasePath: env.DATABASE_PATH,
+    nebiusBaseUrl: env.NEBIUS_BASE_URL,
+    nudgeTickSeconds: env.NUDGE_TICK_SECONDS,
+    nudgeDemoMinutes: env.NUDGE_DEMO_MINUTES,
+    node: process.version,
+  });
+  if (env.LOG_LEVEL === 'debug') {
+    log.warn('debug logging prints full user messages and model prompts; use only for local development');
+  }
+
   const client = createNebiusClient(env);
   mkdirSync(dirname(env.DATABASE_PATH), { recursive: true });
   const store = openStore(env.DATABASE_PATH);
+  log.debug('store opened', { databasePath: env.DATABASE_PATH });
 
   const deps: HandlerDeps = {
     store,
@@ -22,7 +39,10 @@ async function main(): Promise<void> {
     guard: {
       classify: (t) => classifyOutbound(t, { client }),
       inventedNumber: () => false,
-      logTrigger: (t) => store.logTrigger(t),
+      logTrigger: (t) => {
+        log.warn('compliance trigger stored', { ...t });
+        store.logTrigger(t);
+      },
     },
     nudgeDemoMinutes: env.NUDGE_DEMO_MINUTES,
   };
@@ -33,13 +53,17 @@ async function main(): Promise<void> {
     send: sendMessage,
     tickSeconds: env.NUDGE_TICK_SECONDS,
   });
-  process.once('SIGINT', () => scheduler.stop());
-  process.once('SIGTERM', () => scheduler.stop());
+  const shutdown = (signal: string) => {
+    log.info('shutting down', { signal });
+    scheduler.stop();
+  };
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
   await telegram;
   scheduler.stop();
 }
 
 main().catch((err: unknown) => {
-  console.error(err instanceof Error ? err.message : String(err));
+  log.error('fatal', errorData(err));
   process.exit(1);
 });

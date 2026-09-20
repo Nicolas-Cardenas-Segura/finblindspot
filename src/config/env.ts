@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { LogLevel } from '../log/logger.js';
+import { LOG_LEVELS } from '../log/logger.js';
 
 export interface Env {
   TELEGRAM_BOT_TOKEN: string;
@@ -8,6 +10,7 @@ export interface Env {
   DATABASE_PATH: string;
   NUDGE_TICK_SECONDS: number;
   NUDGE_DEMO_MINUTES?: number;
+  LOG_LEVEL: LogLevel;
 }
 
 const optionalString = z
@@ -34,6 +37,11 @@ const EnvSchema = z.object({
       }
       return n;
     }),
+  LOG_LEVEL: z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined || v.trim() === '' ? 'info' : v.trim().toLowerCase()))
+    .pipe(z.enum(LOG_LEVELS)),
 });
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {

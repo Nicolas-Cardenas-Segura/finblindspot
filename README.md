@@ -122,8 +122,10 @@ Requires Node.js 20+.
 ```sh
 cp .env.example .env   # fill in TELEGRAM_BOT_TOKEN and NEBIUS_API_KEY
 npm install
-npm run dev            # tsx watch src/index.ts — long polling, no tunnel needed
+npm run dev            # tsx watch src/index.ts — long polling, no tunnel needed, LOG_LEVEL=debug
 ```
+
+`npm run dev` runs with `LOG_LEVEL=debug`, which traces every turn on stderr: the raw Telegram update and user text (`[telegram] ← user`), the reply and keyboard (`[telegram] → bot`), the loaded interview state and each state transition with the stored answers (`[handler]`), redaction hits, the intent decision — deterministic shortcut or full model prompt/response/usage (`[intent]`, `[llm]`) — the computed assessment (derived values, results, fired rules, action plan, comparison delta), guardrail drafts/verdicts/fallbacks (`[guard]`, `[explain]`), scheduler ticks (`[nudge]`) and all errors with stack traces. Set `LOG_LEVEL=info` in the shell (`LOG_LEVEL=info npm run dev`) to keep only message in/out, completed assessments, nudges and warnings. Debug output contains user text and model prompts, so keep it to local runs.
 
 Other scripts: `npm test` (Vitest — v1 test cases A–D in `tests/fixtures/cases.ts` are the engine's acceptance suite), `npm run typecheck`, `npm run build` then `npm start`.
 
@@ -137,6 +139,7 @@ Environment variables (`.env.example`):
 | `NUDGE_TICK_SECONDS` | How often the in-process scheduler checks for due reminders |
 | `NUDGE_DEMO_MINUTES` | Demo fast-forward: "6 months" becomes 6 × N minutes (empty = real months) |
 | `GALTEA_API_KEY` | Optional; `npx tsx eval/galtea/run.ts --offline` runs the adversarial suite without it |
+| `LOG_LEVEL` | `debug` \| `info` (default) \| `warn` \| `error` \| `silent`; `npm run dev` forces `debug` unless set in the shell |
 
 Then talk to the bot: `/start` to run an assessment, `/revisit` to re-assess and see what moved, `/forget` to erase everything. The model only interprets what you *meant*; every number and every blind spot comes from `src/engine/` and `src/rules/` — see [`finance-blind-spot-v1-spec.html`](finance-blind-spot-v1-spec.html) for the formulas and rules being implemented.
 
