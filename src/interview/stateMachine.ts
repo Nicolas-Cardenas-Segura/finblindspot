@@ -21,6 +21,7 @@ export interface InterviewState {
   order?: number[];
   complete: boolean;
   awaitingNudgeChoice?: boolean;
+  pending?: Partial<Record<FieldId, unknown>>;
 }
 
 const ANOTHER_PENSION_INDEX = -1;
@@ -172,6 +173,46 @@ export function applyAnswer(
     fieldIndex: s.fieldIndex + 1,
     retries: 0,
   });
+}
+
+const PENSION_ROW_IDS = new Set<string>(PENSION_FIELDS.map((f) => f.id));
+
+type Pending = Partial<Record<FieldId, unknown>>;
+
+function withPending(s: InterviewState, pending: Pending): InterviewState {
+  if (Object.keys(pending).length === 0) {
+    const { pending: _p, ...rest } = s;
+    return rest;
+  }
+  return { ...s, pending };
+}
+
+function omit(pending: Pending, ids: Set<string>): Pending {
+  return Object.fromEntries(
+    Object.entries(pending).filter(([id]) => !ids.has(id)),
+  ) as Pending;
+}
+
+function drainPending(s: InterviewState): InterviewState {
+  let state = s;
+  while (state.pending !== undefined) {
+    const f = currentField(state);
+    if (f === null) return withPending(state, {});
+    let pending = state.pending;
+    if (f.id === 'pensions') {
+      pending = omit(pending, PENSION_ROW_IDS);
+      state = withPending(state, pending);
+    }
+    if (!(f.id in pending)) return state;
+    const { [f.id]: value, ...rest } = pending;
+    state = applyAnswer(withPending(state, rest as Pending), value);
+  }
+  return state;
+}
+
+export function applyMany(s: InterviewState, values: Pending): InterviewState {
+  const fresh = omit(values, new Set(Object.keys(s.answers).filter((id) => id !== 'pensions')));
+  return drainPending(withPending(s, { ...(s.pending ?? {}), ...fresh }));
 }
 
 export function applyCorrection(

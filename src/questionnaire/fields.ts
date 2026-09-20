@@ -13,6 +13,53 @@ export type FieldType =
   | 'multi_select'
   | 'currency';
 
+export interface SectionDef {
+  title: string;
+  opener: string;
+}
+
+export const SECTIONS: Record<Section, SectionDef> = {
+  A: {
+    title: 'You and your household',
+    opener:
+      'Tell me a bit about yourself: your age, where you live, whether you have a partner or children, and whether you expect to stay abroad long term.',
+  },
+  B: {
+    title: 'Money in and out each month',
+    opener:
+      'Give me a rough picture of a typical month: what comes in after tax, and what goes out on housing, day-to-day living, loan repayments and everything else.',
+  },
+  C: {
+    title: 'What you own and owe',
+    opener:
+      'Now the bigger picture: roughly how much cash and investments you hold and where, any property and mortgages, and any other debt.',
+  },
+  D: {
+    title: 'Pensions',
+    opener:
+      'Tell me about your pensions, one at a time: which country it is in, what type, roughly what it is worth or pays, when it starts, and what goes in each month.',
+  },
+  E: {
+    title: 'Protection and succession',
+    opener:
+      'A few things about protection: life insurance, illness or income cover, health cover where you live, and whether you have a will.',
+  },
+  F: {
+    title: 'The retirement you want',
+    opener:
+      'Now the fun part: when would you like to retire, where do you expect to live, and how much take-home income a month would you want in today\'s money?',
+  },
+  G: {
+    title: 'Assumptions',
+    opener:
+      'Nearly there. The projection uses a few standard assumptions for inflation, growth and the income a pot provides; you can keep each default or give your own percentage.',
+  },
+  H: {
+    title: 'What you want to learn',
+    opener: 'Last one: which topics would you most like to understand better?',
+  },
+};
+
 export interface FieldDef {
   id: FieldId;
   section: Section;

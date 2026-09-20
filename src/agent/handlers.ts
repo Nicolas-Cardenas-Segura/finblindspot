@@ -15,6 +15,7 @@ import { guardedGenerate } from '../guardrail/guard.js';
 import type { InterviewState } from '../interview/stateMachine.js';
 import {
   applyAnswer,
+  applyMany,
   applyCorrection,
   createState,
   currentField,
@@ -27,8 +28,10 @@ import { SYSTEM_PROMPT, TURN_PROMPT } from '../llm/prompts.js';
 import { createLogger, errorData } from '../log/logger.js';
 import { dueAt } from '../nudge/scheduler.js';
 import { redactSensitive } from '../privacy/sensitiveFilter.js';
+import { retrieve, summarizeAssessment } from '../knowledge/retrieve.js';
 import type { FieldDef } from '../questionnaire/fields.js';
-import { FIELDS, PENSION_FIELDS } from '../questionnaire/fields.js';
+import { FIELDS, PENSION_FIELDS, SECTIONS } from '../questionnaire/fields.js';
+import type { Extra } from '../questionnaire/intent.js';
 import { classifyIntent } from '../questionnaire/intent.js';
 import type { Answers, Currency, FieldId } from '../questionnaire/schema.js';
 import { selectActionPlan } from '../rules/evaluate.js';
@@ -130,6 +133,8 @@ function staticTurn(s: InterviewState, event: TurnEvent, reminder?: string): Out
         return `Updated "${promptFor(event.fieldId)}" to ${event.shown}.`;
       case 'question_answered':
         return event.explanation;
+      case 'partial_stored':
+        return `Saved: ${event.fieldIds.map(promptFor).join(', ')}.`;
       case 'skip_refused':
         return 'This one is needed to work out your position.';
       case 'off_topic':
@@ -143,6 +148,46 @@ function staticTurn(s: InterviewState, event: TurnEvent, reminder?: string): Out
   return askCurrent(s, [reminder, prefix].filter(Boolean).join('\n\n') || undefined);
 }
 
+export function openFields(s: InterviewState): FieldDef[] {
+  const current = currentField(s);
+  if (current === null) return [];
+  if (current.repeat === 'pensions') {
+    const idx = PENSION_FIELDS.findIndex((f) => f.id === current.id);
+    return PENSION_FIELDS.slice(idx + 1);
+  }
+  if (current.id === 'pensions') return [];
+  const answered = new Set(Object.keys(s.answers));
+  const start = FIELDS.findIndex((f) => f.id === current.id);
+  const open: FieldDef[] = [];
+  for (const f of FIELDS.slice(start + 1)) {
+    if (f.section !== current.section) break;
+    if (answered.has(f.id) || f.id in (s.pending ?? {})) continue;
+    if (f.showIf && !f.showIf(s.answers)) continue;
+    open.push(f);
+  }
+  return open;
+}
+
+function sectionOf(event: TurnEvent): string | null {
+  if (event.kind === 'consent_given') return 'A';
+  if (event.kind === 'answer_stored' || event.kind === 'dont_know_stored') {
+    return [...FIELDS, ...PENSION_FIELDS].find((f) => f.id === event.fieldId)?.section ?? null;
+  }
+  return null;
+}
+
+function isSectionStart(field: FieldDef, event: TurnEvent): boolean {
+  const from = sectionOf(event);
+  if (from === null) return false;
+  if (field.repeat === 'pensions') return field.id === PENSION_FIELDS[0]?.id && event.kind === 'answer_stored' && (event.fieldId === 'pensions' || from !== 'D');
+  return field.section !== from;
+}
+
+function previousReport(userId: string, deps: HandlerDeps): string | undefined {
+  const latest = deps.store.listAssessments(userId).filter((a) => a.status === 'complete').at(-1);
+  return latest === undefined ? undefined : summarizeAssessment(latest);
+}
+
 async function askConversational(
   s: InterviewState,
   event: TurnEvent,
@@ -154,15 +199,26 @@ async function askConversational(
   const field = currentField(s);
   if (field === null || s.mode !== 'assess') return fallback;
 
+  const history = histories.get(msg.userId) ?? [];
+  const sectionStart = isSectionStart(field, event) ? SECTIONS[field.section] : undefined;
+  const lastUser = [...history].reverse().find((t) => t.role === 'user')?.text ?? '';
+  const knowledge = retrieve(`${lastUser} ${field.prompt} ${field.rationale}`, 3, [`field:${field.id}`]).map(
+    (k) => k.text,
+  );
   const prompt = TURN_PROMPT({
     field,
     currency: s.answers.base_currency as Currency | undefined,
     event,
-    history: histories.get(msg.userId) ?? [],
+    history,
     firstName: msg.firstName,
     redacted,
     today: formatDate((deps.now ?? (() => new Date()))()),
+    sectionStart,
+    openInSection: sectionStart === undefined ? openFields(s) : undefined,
+    knowledge,
+    previousReport: previousReport(msg.userId, deps),
   });
+  log.debug('turn context', { field: field.id, sectionStart: sectionStart?.title, knowledge, hasPrevious: prompt.includes('previous report') });
 
   try {
     const generated = await guardedGenerate(
@@ -217,7 +273,20 @@ async function rephraseRationale(
   field: FieldDef,
   msg: Incoming,
   deps: HandlerDeps,
+  question?: string,
 ): Promise<string> {
+  const snippets = question === undefined ? [] : retrieve(`${question} ${field.prompt}`, 3);
+  const background =
+    snippets.length > 0
+      ? `\n\nBackground from our own material you may draw on (paraphrase, add no numbers):\n${snippets.map((k) => `- ${k.text}`).join('\n')}`
+      : '';
+  const previous = question === undefined ? undefined : previousReport(msg.userId, deps);
+  const previousText = previous === undefined ? '' : `\n\nTheir previous report, cite only these figures if relevant:\n${previous}`;
+  const content =
+    question === undefined
+      ? `The user asked why we ask "${field.prompt}". Rephrase this reason in one or two sentences, adding nothing new: ${field.rationale}`
+      : `While being asked "${field.prompt}" the user asked: "${question}". Answer in two or three plain sentences, educational only: explain the concept or why we ask (reason: ${field.rationale}), then hand back to the question. No products, providers, transfers, allocations or predictions, and no numbers beyond those given here.${background}${previousText}`;
+  log.debug('question grounding', { field: field.id, question, snippets: snippets.map((k) => k.source) });
   const generated = await guardedGenerate(
     () =>
       chatText(
@@ -226,10 +295,7 @@ async function rephraseRationale(
           model: MODELS.interview,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content: `The user asked why we ask "${field.prompt}". Rephrase this reason in one or two sentences, adding nothing new: ${field.rationale}`,
-            },
+            { role: 'user', content },
           ],
           temperature: 0.3,
         },
@@ -481,9 +547,22 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
   const intent = await classifyIntent(
     field,
     redaction.text,
-    { answered: stored.answers, currency: stored.answers.base_currency as Currency | undefined },
+    {
+      answered: stored.answers,
+      currency: stored.answers.base_currency as Currency | undefined,
+      open: stored.mode === 'assess' ? openFields(stored) : [],
+    },
     { client: deps.llm },
   );
+
+  if (intent.kind === 'answer_others') {
+    const next = applyMany(stored, intent.extra);
+    deps.store.saveState(next);
+    transition(`answer_others → stored ${Object.keys(intent.extra).join(',')} for later`, stored, next, {
+      extra: intent.extra,
+    });
+    return advance(stored, next, { kind: 'partial_stored', fieldIds: Object.keys(intent.extra) as FieldId[] }, msg, deps, redacted);
+  }
 
   if (
     intent.kind === 'answer' ||
@@ -491,13 +570,14 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
     (intent.kind === 'skip_request' && field.allowUnknown)
   ) {
     const value = intent.kind === 'answer' ? intent.value : null;
-    const next = applyAnswer(stored, value);
+    const extra: Extra = intent.kind === 'answer' && intent.extra !== undefined ? intent.extra : {};
+    const next = applyMany(applyAnswer(stored, value), extra);
     deps.store.saveState(next);
-    transition(`${intent.kind} → stored ${field.id}`, stored, next, { field: field.id, value });
+    transition(`${intent.kind} → stored ${field.id}`, stored, next, { field: field.id, value, extra });
     const event: TurnEvent =
       value === null
         ? { kind: 'dont_know_stored', fieldId: field.id }
-        : { kind: 'answer_stored', fieldId: field.id, shown: showValue(value) };
+        : { kind: 'answer_stored', fieldId: field.id, shown: showValue(value), also: Object.keys(extra) as FieldId[] };
     return advance(stored, next, event, msg, deps, redacted);
   }
 
@@ -526,7 +606,7 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
   }
 
   if (intent.kind === 'question') {
-    const why = await rephraseRationale(field, msg, deps);
+    const why = await rephraseRationale(field, msg, deps, stored.mode === 'assess' ? intent.text : undefined);
     return advance(stored, stored, { kind: 'question_answered', explanation: why }, msg, deps, redacted);
   }
 

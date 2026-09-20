@@ -108,4 +108,42 @@ describe('classifyIntent', () => {
       kind: 'off_topic',
     });
   });
+
+  it('extracts validated values for other open fields in the same message', async () => {
+    const housing = fieldById('spend_housing');
+    const living = fieldById('spend_living');
+    const { client, create } = stubClient(
+      JSON.stringify({ intent: 'answer', value: 5000, values: { spend_housing: 1800, spend_living: 'lots', retire_age: 60 } }),
+    );
+    expect(
+      await classifyIntent(
+        income,
+        'I take home 5k, rent is 1800 and living is lots',
+        { answered: {}, open: [housing, living] },
+        { client },
+      ),
+    ).toEqual({ kind: 'answer', value: 5000, extra: { spend_housing: 1800 } });
+    const params = create.mock.calls[0]?.[0] as { messages: { content: string }[] };
+    expect(params.messages[0]?.content).toContain('- spend_housing:');
+    expect(params.messages[0]?.content).toContain('- spend_living:');
+  });
+
+  it('returns answer_others when only other open fields were answered', async () => {
+    const housing = fieldById('spend_housing');
+    const { client } = stubClient(JSON.stringify({ intent: 'answer', values: { spend_housing: 1800 } }));
+    expect(
+      await classifyIntent(income, 'rent is 1800', { answered: {}, open: [housing] }, { client }),
+    ).toEqual({ kind: 'answer_others', extra: { spend_housing: 1800 } });
+  });
+
+  it('keeps null in extra values only where unknown is allowed', async () => {
+    const housing = fieldById('spend_housing');
+    const dependants = fieldById('dependants');
+    const { client } = stubClient(
+      JSON.stringify({ intent: 'answer', value: 5000, values: { spend_housing: null, dependants: null } }),
+    );
+    expect(
+      await classifyIntent(income, '5k, no idea on rent', { answered: {}, open: [housing, dependants] }, { client }),
+    ).toEqual({ kind: 'answer', value: 5000, extra: { spend_housing: null } });
+  });
 });

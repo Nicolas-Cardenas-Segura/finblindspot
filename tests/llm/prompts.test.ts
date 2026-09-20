@@ -6,7 +6,7 @@ import {
   EXPLANATION_PROMPT,
   GUARDRAIL_PROMPT,
 } from '../../src/llm/prompts.js';
-import { FIELDS } from '../../src/questionnaire/fields.js';
+import { FIELDS, SECTIONS } from '../../src/questionnaire/fields.js';
 import type { BlindSpotContent } from '../../src/explain/content.js';
 
 const incomeField = FIELDS.find((f) => f.id === 'income_monthly')!;
@@ -77,6 +77,15 @@ describe('INTENT_PROMPT', () => {
     const enumPrompt = INTENT_PROMPT(currencyField, []);
     expect(enumPrompt).toContain(currencyField.options!.join(', '));
   });
+
+  it('lists other open fields and the multi-value shape', () => {
+    const housing = FIELDS.find((f) => f.id === 'spend_housing')!;
+    const open = INTENT_PROMPT(incomeField, [], 'EUR', [housing]);
+    expect(open).toContain(`- spend_housing: ${housing.prompt}`);
+    expect(open).toContain('"values"');
+    expect(open).toContain('"spend_housing": 1800');
+    expect(open).toContain('never guess');
+  });
 });
 
 describe('EXPLANATION_PROMPT', () => {
@@ -127,6 +136,42 @@ describe('TURN_PROMPT', () => {
     expect(prompt).toContain('Amounts are in EUR');
     expect(prompt).toContain('approximate figures');
     expect(prompt).toContain('no advice, no products');
+  });
+
+  it('asks an open question at the start of a section and carries grounding context', () => {
+    const open = TURN_PROMPT({
+      field: incomeField,
+      currency: 'EUR',
+      event: { kind: 'answer_stored', fieldId: 'base_currency', shown: 'EUR' },
+      history: [],
+      redacted: false,
+      today: 'January 15, 2026',
+      sectionStart: SECTIONS.B,
+      knowledge: ['Emergency money is what stops a bad month turning into a bad decade.'],
+      previousReport: '- Date: 2025-07-01, currency EUR',
+    });
+    expect(open).toContain(SECTIONS.B.title);
+    expect(open).toContain(SECTIONS.B.opener);
+    expect(open).not.toContain('keep its exact meaning');
+    expect(open).toContain('Emergency money is what stops');
+    expect(open).toContain('Their previous report');
+    expect(open).toContain('- Date: 2025-07-01, currency EUR');
+  });
+
+  it('mentions the other open questions of the section on a follow-up', () => {
+    const housing = FIELDS.find((f) => f.id === 'spend_housing')!;
+    const follow = TURN_PROMPT({
+      field: incomeField,
+      event: { kind: 'partial_stored', fieldIds: ['spend_living'] },
+      history: [],
+      redacted: false,
+      today: 'January 15, 2026',
+      openInSection: [housing],
+    });
+    expect(follow).toContain('keep its exact meaning');
+    expect(follow).toContain(`Still open in this part`);
+    expect(follow).toContain(housing.prompt);
+    expect(follow).toContain('but not the current question');
   });
 
   it('marks required fields as not skippable', () => {

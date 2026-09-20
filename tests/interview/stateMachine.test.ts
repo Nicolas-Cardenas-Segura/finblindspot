@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   applyAnswer,
   applyCorrection,
+  applyMany,
   createState,
   currentField,
   isComplete,
@@ -118,5 +119,54 @@ describe('interview state machine', () => {
     s = applyAnswer(s, 0.04);
     expect(s.assumptions.inflation_rate).toBe(0.04);
     expect('inflation_rate' in s.answers).toBe(false);
+  });
+
+  it('applyMany fills consecutive pending fields and stops at the first gap', () => {
+    const s = applyMany(answerUntil(createState('u1'), 'age'), {
+      age: 41,
+      has_partner: 'household',
+      residence_country: 'ES',
+      dependants: 2,
+    });
+    expect(s.answers.age).toBe(41);
+    expect(s.answers.has_partner).toBe('household');
+    expect(s.answers.residence_country).toBe('ES');
+    expect(currentField(s)?.id).toBe('stay_abroad');
+    expect('dependants' in s.answers).toBe(false);
+    expect(s.pending).toEqual({ dependants: 2 });
+  });
+
+  it('applyMany drains pending values once the gap is answered', () => {
+    let s = applyMany(answerUntil(createState('u1'), 'age'), { age: 41, dependants: 2 });
+    expect(currentField(s)?.id).toBe('has_partner');
+    s = applyAnswer(s, 'just_me');
+    s = applyMany(s, { residence_country: 'ES', stay_abroad: 'yes' });
+    expect(s.answers.dependants).toBe(2);
+    expect(s.pending).toBeUndefined();
+    expect(currentField(s)?.id).toBe('education_funded');
+  });
+
+  it('applyMany ignores values for fields that are already answered', () => {
+    const s = applyMany(answerUntil(createState('u1'), 'has_partner'), { age: 99, has_partner: 'no' });
+    expect(s.answers.age).toBe(BASE.age);
+    expect(s.answers.has_partner).toBe('no');
+  });
+
+  it('applyMany fills a pension row and does not leak values into the next row', () => {
+    let s = answerUntil(createState('u1'), 'pension_country');
+    s = applyMany(s, {
+      pension_country: 'GB',
+      pension_type: 'defined_contribution',
+      pension_value: 50000,
+      pension_fixed_income_monthly: null,
+      pension_start_age: 67,
+      pension_contribution_monthly: 300,
+      pension_contributions_continue: 'yes',
+    });
+    expect(currentField(s)?.id).toBe('pensions');
+    expect(s.answers.pensions?.[0]?.pension_value).toBe(50000);
+    s = applyMany(s, { pensions: 'yes', pension_value: 1 });
+    expect(currentField(s)?.id).toBe('pension_country');
+    expect(s.pending).toBeUndefined();
   });
 });

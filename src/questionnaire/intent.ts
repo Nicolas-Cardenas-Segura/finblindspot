@@ -15,8 +15,11 @@ export type IntentKind =
   | 'off_topic'
   | 'command';
 
+export type Extra = Partial<Record<FieldId, unknown>>;
+
 export type Intent =
-  | { kind: 'answer'; value: unknown }
+  | { kind: 'answer'; value: unknown; extra?: Extra }
+  | { kind: 'answer_others'; extra: Extra }
   | { kind: 'correction'; fieldId: FieldId; value: unknown }
   | { kind: 'question'; text: string }
   | { kind: 'command'; command: string }
@@ -27,6 +30,7 @@ export type Intent =
 export interface IntentContext {
   answered: Partial<Answers>;
   currency?: Currency;
+  open?: FieldDef[];
 }
 
 const DONT_KNOW_SYNONYMS = ["don't know", 'dont know', 'not sure', 'no idea', 'unknown', '?'];
@@ -71,9 +75,26 @@ export async function classifyIntent(
   }
 
   const answered = Object.keys(ctx.answered) as FieldId[];
-  const intent = await classifyWithModel(field, reply, answered, ctx.currency, deps.client);
+  const intent = await classifyWithModel(field, reply, answered, ctx.currency, ctx.open ?? [], deps.client);
   log.debug('model classification', { field: field.id, reply, intent });
   return intent;
+}
+
+function validateExtra(values: unknown, open: FieldDef[]): Extra {
+  const extra: Extra = {};
+  if (typeof values !== 'object' || values === null || Array.isArray(values)) return extra;
+  for (const [id, raw] of Object.entries(values as Record<string, unknown>)) {
+    const f = open.find((o) => o.id === id);
+    if (f === undefined) continue;
+    if (raw === null) {
+      if (f.allowUnknown) extra[f.id] = null;
+      continue;
+    }
+    const result = parseFieldValue(f.id, raw);
+    if (result.success) extra[f.id] = result.value;
+    else log.warn('extra value rejected by schema → dropped', { field: id, value: raw, reason: result.reason });
+  }
+  return extra;
 }
 
 async function classifyWithModel(
@@ -81,6 +102,7 @@ async function classifyWithModel(
   reply: string,
   answered: FieldId[],
   currency: Currency | undefined,
+  open: FieldDef[],
   client: OpenAI,
 ): Promise<Intent> {
   let content = '';
@@ -91,7 +113,7 @@ async function classifyWithModel(
       {
         model: MODELS.interview,
         messages: [
-          { role: 'system', content: INTENT_PROMPT(field, answered, currency) },
+          { role: 'system', content: INTENT_PROMPT(field, answered, currency, open) },
           { role: 'user', content: reply },
         ],
         response_format: { type: 'json_object' },
@@ -110,16 +132,29 @@ async function classifyWithModel(
     return { kind: 'off_topic' };
   }
 
-  const body = parsed as { intent?: unknown; value?: unknown; field_id?: unknown };
+  const body = parsed as { intent?: unknown; value?: unknown; field_id?: unknown; values?: unknown };
 
   switch (body.intent) {
     case 'answer': {
-      const result = parseFieldValue(field.id, body.value);
+      const extra = validateExtra(body.values, open);
+      const raw =
+        body.value !== undefined
+          ? body.value
+          : typeof body.values === 'object' && body.values !== null
+            ? (body.values as Record<string, unknown>)[field.id]
+            : undefined;
+      const result = parseFieldValue(field.id, raw);
       if (!result.success) {
-        log.warn('answer value rejected by schema → off_topic', { field: field.id, value: body.value, reason: result.reason });
+        if (Object.keys(extra).length > 0) {
+          log.debug('current field not answered, other fields extracted', { field: field.id, extra });
+          return { kind: 'answer_others', extra };
+        }
+        log.warn('answer value rejected by schema → off_topic', { field: field.id, value: raw, reason: result.reason });
         return { kind: 'off_topic' };
       }
-      return { kind: 'answer', value: result.value };
+      return Object.keys(extra).length > 0
+        ? { kind: 'answer', value: result.value, extra }
+        : { kind: 'answer', value: result.value };
     }
     case 'correction': {
       const fieldId = body.field_id;

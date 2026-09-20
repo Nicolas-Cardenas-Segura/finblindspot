@@ -1,5 +1,5 @@
 import type { BlindSpotContent } from '../explain/content.js';
-import type { FieldDef } from '../questionnaire/fields.js';
+import type { FieldDef, SectionDef } from '../questionnaire/fields.js';
 import { FIELDS, PENSION_FIELDS } from '../questionnaire/fields.js';
 import type { Currency, FieldId } from '../questionnaire/schema.js';
 
@@ -29,7 +29,8 @@ Style rules, follow all of them:
 
 export type TurnEvent =
   | { kind: 'consent_given' }
-  | { kind: 'answer_stored'; fieldId: FieldId; shown: string }
+  | { kind: 'answer_stored'; fieldId: FieldId; shown: string; also?: FieldId[] }
+  | { kind: 'partial_stored'; fieldIds: FieldId[] }
   | { kind: 'dont_know_stored'; fieldId: FieldId }
   | { kind: 'correction_applied'; fieldId: FieldId; shown: string }
   | { kind: 'question_answered'; explanation: string }
@@ -49,6 +50,10 @@ export interface TurnContext {
   firstName?: string;
   redacted: boolean;
   today: string;
+  sectionStart?: SectionDef;
+  openInSection?: FieldDef[];
+  knowledge?: string[];
+  previousReport?: string;
 }
 
 function describeEvent(e: TurnEvent): string {
@@ -56,13 +61,19 @@ function describeEvent(e: TurnEvent): string {
     case 'consent_given':
       return 'They just agreed to start. Welcome them in one short sentence, then ask the first question.';
     case 'answer_stored':
-      return `Their answer to "${promptFor(e.fieldId)}" was saved as: ${e.shown}. Acknowledge it in at most one short clause (or not at all), then ask the next question.`;
+      return `Their answer to "${promptFor(e.fieldId)}" was saved as: ${e.shown}.${
+        e.also !== undefined && e.also.length > 0
+          ? ` From the same message these were also saved: ${e.also.map(promptFor).join('; ')}.`
+          : ''
+      } Acknowledge it in at most one short clause (or not at all), then ask the next question.`;
+    case 'partial_stored':
+      return `Their message answered ${e.fieldIds.map(promptFor).join('; ')}, all saved, but not the current question. Acknowledge briefly, then ask the current question.`;
     case 'dont_know_stored':
       return `They did not know the answer to "${promptFor(e.fieldId)}". It is recorded as unknown, which is fine. Reassure briefly, then ask the next question.`;
     case 'correction_applied':
       return `They corrected an earlier answer. "${promptFor(e.fieldId)}" is now saved as: ${e.shown}. Confirm the change in one sentence, then ask the current question again.`;
     case 'question_answered':
-      return `They asked why you need this. Give this explanation in your own words without adding anything to it: ${e.explanation} Then ask the question again.`;
+      return `They asked a question. Give this answer in your own words without adding anything to it: ${e.explanation} Then ask the question again.`;
     case 'skip_refused':
       return 'They asked to skip, but this answer is needed to work out their position, so it cannot be skipped. Say so kindly in one sentence and ask again.';
     case 'off_topic':
@@ -80,9 +91,19 @@ export function TURN_PROMPT(ctx: TurnContext): string {
           .map((t) => `[${t.role === 'user' ? (ctx.firstName ?? 'User') : ASSISTANT_NAME}]: ${t.text}`)
           .join('\n')
       : '(none yet)';
-  const constraints: string[] = [
-    `Question to ask, keep its exact meaning: ${f.prompt}`,
-  ];
+  const constraints: string[] = [];
+  if (ctx.sectionStart !== undefined) {
+    constraints.push(
+      `A new part of the interview starts: "${ctx.sectionStart.title}". Ask it as one open question, in your own words, based on: ${ctx.sectionStart.opener} Make clear they can answer as much or as little as they like in one message and you will follow up on the rest.`,
+    );
+  } else {
+    constraints.push(`Question to ask, keep its exact meaning: ${f.prompt}`);
+    if (ctx.openInSection !== undefined && ctx.openInSection.length > 0) {
+      constraints.push(
+        `Still open in this part, which they may cover in the same reply if they like (do not list them all, just ask the question above): ${ctx.openInSection.map((o) => o.prompt).join(' | ')}`,
+      );
+    }
+  }
   if (f.helper !== undefined) constraints.push(`Helper text you may weave in: ${f.helper}`);
   if (f.options !== undefined && f.options.length > 0) {
     constraints.push(`Options, state them verbatim so they can tap them: ${f.options.join(' / ')}`);
@@ -97,6 +118,15 @@ export function TURN_PROMPT(ctx: TurnContext): string {
     );
   }
 
+  const knowledge =
+    ctx.knowledge !== undefined && ctx.knowledge.length > 0
+      ? `\nBackground from our own material, which you may paraphrase if it helps (it adds no numbers about this person):\n${ctx.knowledge.map((k) => `- ${k}`).join('\n')}\n`
+      : '';
+  const previous =
+    ctx.previousReport !== undefined
+      ? `\nTheir previous report. You may refer back to it when relevant, citing only these figures:\n${ctx.previousReport}\n`
+      : '';
+
   return `Write the assistant's next Telegram message in the assessment.
 
 Today: ${ctx.today}
@@ -104,13 +134,14 @@ Person's first name: ${ctx.firstName ?? 'unknown'}
 
 Conversation so far (most recent last):
 ${historyText}
-
+${knowledge}${previous}
 What just happened:
 ${describeEvent(ctx.event)}
 
 The message must:
 ${constraints.map((c) => `- ${c}`).join('\n')}
 - Be 1 to 3 short sentences plus the question. Plain text, no markdown, no bullet lists.
+- Ask in a natural, open way; they answer in their own words and the backend does the parsing.
 - Contain no numbers except ones that appear above.
 - Contain no advice, no products, no providers, no predictions.
 
@@ -122,11 +153,24 @@ function promptFor(id: FieldId): string {
   return field ? field.prompt : '';
 }
 
-export function INTENT_PROMPT(field: FieldDef, answered: FieldId[], currency?: Currency): string {
+function describeField(f: FieldDef): string {
+  const parts = [`type ${f.type}`];
+  if (f.options) parts.push(`options: ${f.options.join(', ')}`);
+  if (f.allowUnknown) parts.push('null allowed for "don\'t know"');
+  return `- ${f.id}: ${f.prompt} (${parts.join('; ')})`;
+}
+
+export function INTENT_PROMPT(
+  field: FieldDef,
+  answered: FieldId[],
+  currency?: Currency,
+  open: FieldDef[] = [],
+): string {
   const answeredList =
     answered.length > 0
       ? answered.map((id) => `- ${id}: ${promptFor(id)}`).join('\n')
       : '- (none yet)';
+  const openList = open.length > 0 ? open.map(describeField).join('\n') : '- (none)';
 
   return `Classify the user's reply to the current question of a financial assessment interview.
 
@@ -142,8 +186,11 @@ ${currency ? `- currency: ${currency}` : '- currency: not set yet'}
 Already answered field IDs and their questions:
 ${answeredList}
 
+Other open questions in this part of the interview. The user may answer several at once; capture every one their message clearly answers, in "values" keyed by field ID:
+${openList}
+
 Return JSON only, with this shape:
-{ "intent": "answer" | "dont_know" | "question" | "correction" | "skip_request" | "off_topic", "value"?: <typed value>, "field_id"?: <one of the already answered field IDs> }
+{ "intent": "answer" | "dont_know" | "question" | "correction" | "skip_request" | "off_topic", "value"?: <typed value for the current field>, "values"?: { <open field id>: <typed value> }, "field_id"?: <one of the already answered field IDs> }
 
 Rules:
 - "value" is required for "answer" and "correction", and must match the field's type:
@@ -155,12 +202,14 @@ Rules:
   country_list: an array of ISO-3166 alpha-2 codes.
 - "field_id" is required for "correction" and must be one of the already answered field IDs listed above; the corrected "value" belongs to that field.
 - Zero is a valid value when zeroValid is true. "I don't know" is "dont_know", never 0.
+- Use "answer" with "values" (and "value" omitted) when the message answers other open questions but not the current one. Only include values the user actually stated; never guess or fill in defaults. Inside "values", null means the user said they do not know that one.
 - Use "question" when the user asks something instead of answering, "skip_request" when they ask to skip or move on, and "off_topic" for anything else.
 
 Examples:
 Reply: "about 4.2k after tax" -> { "intent": "answer", "value": 4200 }
 Reply: "why do you need this?" -> { "intent": "question" }
-Reply: "actually my rent is 1500" -> { "intent": "correction", "field_id": "spend_housing", "value": 1500 }`;
+Reply: "actually my rent is 1500" -> { "intent": "correction", "field_id": "spend_housing", "value": 1500 }
+Reply (current field income_monthly, open: spend_housing, spend_living): "I take home 5k, rent is 1800 and we spend maybe 2000 on living" -> { "intent": "answer", "value": 5000, "values": { "spend_housing": 1800, "spend_living": 2000 } }`;
 }
 
 export function EXPLANATION_PROMPT(

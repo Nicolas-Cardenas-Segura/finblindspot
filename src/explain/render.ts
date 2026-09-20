@@ -26,7 +26,7 @@ function group(n: number): string {
   return Math.round(n).toLocaleString('en-US');
 }
 
-function money(n: number, currency: Currency): string {
+export function money(n: number, currency: Currency): string {
   return `${SYMBOLS[currency]}${group(roundHundred(n))}`;
 }
 

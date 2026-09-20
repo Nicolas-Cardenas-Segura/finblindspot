@@ -244,6 +244,58 @@ describe('handleMessage', () => {
     expect(prompt).toContain('[Luca]: 1200');
   });
 
+  it('stores several fields from one open answer and follows up only on what is missing', async () => {
+    await startInterview();
+    await answerUntil('age');
+
+    intentOverride = {
+      intent: 'answer',
+      value: 41,
+      values: { has_partner: 'household', residence_country: 'ES', dependants: 2 },
+    };
+    await send("I'm 41, married, living in Spain with two kids");
+
+    const s = state()!;
+    expect(s.answers.age).toBe(41);
+    expect(s.answers.has_partner).toBe('household');
+    expect(s.answers.residence_country).toBe('ES');
+    expect(fieldNow()?.id).toBe('stay_abroad');
+    expect(s.pending).toEqual({ dependants: 2 });
+    expect(turnPrompts.at(-1)).toContain('these were also saved');
+
+    intentOverride = null;
+    nextValue = 'yes';
+    await send('yes');
+    expect(state()!.answers.dependants).toBe(2);
+    expect(fieldNow()?.id).toBe('education_funded');
+  });
+
+  it('keeps asking the current field when only other fields were answered', async () => {
+    await startInterview();
+    await answerUntil('income_monthly');
+
+    intentOverride = { intent: 'answer', values: { spend_housing: 1800 } };
+    const out = await send('rent is 1800');
+
+    expect(fieldNow()?.id).toBe('income_monthly');
+    expect(state()!.pending).toEqual({ spend_housing: 1800 });
+    expect(out.text).toContain('Saved: Housing and utilities each month.');
+
+    intentOverride = null;
+    nextValue = 5000;
+    await send('5000');
+    expect(state()!.answers.spend_housing).toBe(1800);
+    expect(fieldNow()?.id).toBe('spend_living');
+  });
+
+  it('asks an open section question when a new section starts', async () => {
+    await startInterview();
+    await answerUntil('base_currency');
+    expect(fieldNow()?.id).toBe('base_currency');
+    expect(turnPrompts.at(-1)).toContain('Money in and out each month');
+    expect(turnPrompts.at(-1)).toContain('A new part of the interview starts');
+  });
+
   it('falls back to the static wording when the guard blocks the model turn', async () => {
     await startInterview();
     await answerUntil('spend_living');
