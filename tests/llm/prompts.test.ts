@@ -181,7 +181,7 @@ describe('TURN_PROMPT', () => {
       openInSection: [],
     });
     expect(last).toContain('only thing still open');
-    expect(last).toContain('keep its exact meaning');
+    expect(last).toContain('keeping its exact meaning');
   });
 
   it('accepts a declined answer on a required field without pushing back', () => {
