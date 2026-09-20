@@ -4,6 +4,7 @@ import { runPartialAssessment } from '../assess/assess.js';
 import { compare } from '../assess/compare.js';
 import { explainBlindSpot } from '../explain/explain.js';
 import { buildReport, reportFilename } from '../explain/report.js';
+import type { PreviousReportSummary } from '../explain/render.js';
 import {
   renderActionPlan,
   renderConsent,
@@ -72,7 +73,7 @@ const SENSITIVE_REMINDER =
   'Please do not send account, card, passport or tax numbers. Only approximate figures are needed.';
 
 const HELP =
-  'I can run /start for a new assessment, /revisit to update the last one, /report to resend your latest PDF report, and /forget to delete everything I hold about you. During an assessment, /skip leaves a question out and /stop ends it with a report on what you have told me so far.';
+  'I can run /start for a new assessment, /revisit to update the last one, /report to resend your latest PDF report (/report N or "download N" for an earlier one), and /forget to delete everything I hold about you. During an assessment, /skip leaves a question out and /stop ends it with a report on what you have told me so far.';
 
 const NUDGE_QUESTION = 'Would you like me to remind you to re-assess in 6 or 12 months? Reply with the number of months, or no.';
 
@@ -198,6 +199,43 @@ function previousReport(userId: string, deps: HandlerDeps): string | undefined {
       ? `${stored.text.slice(0, PREVIOUS_REPORT_MAX_CHARS)}\u2026`
       : stored.text;
   return `${summary}\n- What the report said:\n${text}`;
+}
+
+function previousReportSummaries(userId: string, deps: HandlerDeps): PreviousReportSummary[] {
+  const assessments = deps.store.listAssessments(userId);
+  return deps.store.listReports(userId).map((r, i) => {
+    const assessment = assessments.find((a) => a.id === r.assessment_id);
+    return {
+      index: i + 1,
+      date: formatDate(new Date(r.created_at)),
+      status: assessment?.status === 'partial' ? ('partial' as const) : ('complete' as const),
+    };
+  });
+}
+
+const DOWNLOAD_RE = /^(\/report|download)(?:\s+(\d+))?$/i;
+
+function sendStoredReport(userId: string, index: number | undefined, deps: HandlerDeps): Outgoing {
+  const reports = deps.store.listReports(userId);
+  if (reports.length === 0) {
+    return { text: 'There is no report yet. Send /start to run your first assessment.' };
+  }
+  const stored = index === undefined ? reports[reports.length - 1]! : reports[index - 1];
+  if (stored === undefined) {
+    return {
+      text: `I only have ${reports.length} report(s) for you; reply "download 1".."download ${reports.length}".`,
+    };
+  }
+  const assessment = deps.store.listAssessments(userId).find((a) => a.id === stored.assessment_id);
+  log.debug('report resend', { assessmentId: stored.assessment_id, filename: stored.filename, index });
+  return {
+    text: `Here is your report from ${formatDate(new Date(stored.created_at))}.`,
+    document: {
+      filename: stored.filename,
+      data: stored.pdf,
+      caption: assessment === undefined ? 'Your financial blind spot report' : reportCaption(assessment),
+    },
+  };
 }
 
 async function askConversational(
@@ -480,7 +518,7 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
       };
     }
     deps.store.clearState(msg.userId);
-    return { text: renderConsent() };
+    return { text: renderConsent(previousReportSummaries(msg.userId, deps)) };
   }
 
   if (command === '/revisit') {
@@ -500,20 +538,9 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
   }
 
   if (command === '/report') {
-    const stored = deps.store.latestReport(msg.userId);
-    if (stored === undefined) {
-      return { text: 'There is no report yet. Send /start to run your first assessment.' };
-    }
-    const latest = deps.store.listAssessments(msg.userId).find((a) => a.id === stored.assessment_id);
-    log.debug('/report resend', { assessmentId: stored.assessment_id, filename: stored.filename });
-    return {
-      text: `Here is your report from ${formatDate(new Date(stored.created_at))}.`,
-      document: {
-        filename: stored.filename,
-        data: stored.pdf,
-        caption: latest === undefined ? 'Your financial blind spot report' : reportCaption(latest),
-      },
-    };
+    const match = DOWNLOAD_RE.exec(msg.text.trim());
+    const n = match?.[2];
+    return sendStoredReport(msg.userId, n === undefined ? undefined : Number(n), deps);
   }
 
   if (command === '/forget') {
@@ -575,6 +602,11 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
   }
 
   if (stored === undefined) {
+    const download = DOWNLOAD_RE.exec(trimmed);
+    if (download !== null) {
+      const n = download[2];
+      return sendStoredReport(msg.userId, n === undefined ? undefined : Number(n), deps);
+    }
     if (/^(yes|y)$/i.test(trimmed)) {
       const fresh = createState(msg.userId);
       const state = applyAnswer(fresh, 'yes');
@@ -593,7 +625,7 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
     deps.store.clearState(msg.userId);
     clearHistory(msg.userId);
     log.debug('restart → state cleared', { userId: msg.userId });
-    return { text: renderConsent() };
+    return { text: renderConsent(previousReportSummaries(msg.userId, deps)) };
   }
 
   if (/^resume$/i.test(trimmed)) {
