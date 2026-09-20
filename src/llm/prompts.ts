@@ -28,7 +28,7 @@ Style rules, follow all of them:
 - Never describe actions you have not taken and never claim a value was saved unless the message says it was.`;
 
 export type TurnEvent =
-  | { kind: 'consent_given' }
+  | { kind: 'interview_started' }
   | { kind: 'answer_stored'; fieldId: FieldId; shown: string; also?: FieldId[] }
   | { kind: 'partial_stored'; fieldIds: FieldId[] }
   | { kind: 'dont_know_stored'; fieldId: FieldId }
@@ -58,8 +58,8 @@ export interface TurnContext {
 
 function describeEvent(e: TurnEvent): string {
   switch (e.kind) {
-    case 'consent_given':
-      return 'They just agreed to start. Welcome them in one short sentence, then ask the first question.';
+    case 'interview_started':
+      return 'This is the start of a new assessment; the welcome text is already shown above your message. Ask the first open question in one or two sentences, no greeting.';
     case 'answer_stored':
       return `Their answer to "${promptFor(e.fieldId)}" was saved as: ${e.shown}.${
         e.also !== undefined && e.also.length > 0

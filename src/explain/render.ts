@@ -72,21 +72,19 @@ function previousReportsBlock(previousReports: PreviousReportSummary[]): string[
     ...previousReports.map(
       (r) => `${r.index}. ${r.date} — ${r.status === 'partial' ? 'partial report' : 'full report'}`,
     ),
-    `Reply "download ${previousReports.length}" to get one of them again, or "download" for the latest. Otherwise reply YES to start.`,
+    `Reply "download ${previousReports.length}" to get one of them again, or "download" for the latest.`,
     '',
   ];
 }
 
-export function renderConsent(previousReports: PreviousReportSummary[] = []): string {
+export function renderWelcome(previousReports: PreviousReportSummary[] = []): string {
   return [
     `Hi, I'm ${ASSISTANT_NAME}. I'll help you see where you stand: what you might be overlooking, and whether you're on track for the retirement you want.`,
     '',
     'Rough figures are fine. Answer in your own words, say "don\'t know" when you don\'t, and ask me anything along the way.',
     '',
     ...previousReportsBlock(previousReports),
-    'Two things first. This is an educational assessment, not financial advice, and the results depend on the information and assumptions you give. Please do not enter bank logins, account numbers, card numbers, passport details or tax numbers. I do not need them.',
-    '',
-    'Reply YES to continue and we start.',
+    'This is an educational assessment, not financial advice, and the results depend on what you tell me. Your reports are stored only for you and nobody else can access them; send /forget any time to delete everything. Please do not send bank logins, account numbers, card numbers, passport details or tax numbers. I do not need them.',
   ].join('\n');
 }
 

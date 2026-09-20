@@ -7,7 +7,7 @@ import { buildReport, reportFilename } from '../explain/report.js';
 import type { PreviousReportSummary } from '../explain/render.js';
 import {
   renderActionPlan,
-  renderConsent,
+  renderWelcome,
   renderGaps,
   renderProgress,
   renderQuestion,
@@ -172,7 +172,7 @@ export function openFields(s: InterviewState): FieldDef[] {
 }
 
 function sectionOf(event: TurnEvent): string | null {
-  if (event.kind === 'consent_given') return 'A';
+  if (event.kind === 'interview_started') return 'A';
   if (event.kind === 'answer_stored' || event.kind === 'dont_know_stored') {
     return [...FIELDS, ...PENSION_FIELDS].find((f) => f.id === event.fieldId)?.section ?? null;
   }
@@ -506,19 +506,21 @@ function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outg
   return { text: `I will remind you on ${formatDate(due)}. Send /revisit any time before that.` };
 }
 
-function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgoing {
+async function startInterview(msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
+  deps.store.clearState(msg.userId);
+  clearHistory(msg.userId);
+  const fresh = createState(msg.userId);
+  const state = applyAnswer(fresh, 'yes');
+  deps.store.saveState(state);
+  transition('interview started', fresh, state);
+  const first = await askConversational(state, { kind: 'interview_started' }, msg, deps, false);
+  return { ...first, text: `${renderWelcome(previousReportSummaries(msg.userId, deps))}\n\n${first.text}` };
+}
+
+async function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
   log.debug('command', { userId: msg.userId, command });
   if (command === '/start') {
-    const state = deps.store.loadState(msg.userId);
-    clearHistory(msg.userId);
-    if (state !== undefined && !state.complete) {
-      log.debug('/start with draft in progress → resume/restart prompt', { state: stateSummary(state) });
-      return {
-        text: 'You have an assessment in progress. Reply "resume" to carry on where you left off, or "restart" to start again.',
-      };
-    }
-    deps.store.clearState(msg.userId);
-    return { text: renderConsent(previousReportSummaries(msg.userId, deps)) };
+    return startInterview(msg, deps);
   }
 
   if (command === '/revisit') {
@@ -601,31 +603,19 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
     return handleNudgeChoice(trimmed, msg, deps);
   }
 
+  const download = DOWNLOAD_RE.exec(trimmed);
+  if (download !== null) {
+    const n = download[2];
+    return sendStoredReport(msg.userId, n === undefined ? undefined : Number(n), deps);
+  }
+
   if (stored === undefined) {
-    const download = DOWNLOAD_RE.exec(trimmed);
-    if (download !== null) {
-      const n = download[2];
-      return sendStoredReport(msg.userId, n === undefined ? undefined : Number(n), deps);
-    }
-    if (/^(yes|y)$/i.test(trimmed)) {
-      const fresh = createState(msg.userId);
-      const state = applyAnswer(fresh, 'yes');
-      deps.store.saveState(state);
-      transition('consent given → interview started', fresh, state);
-      clearHistory(msg.userId);
-      return askConversational(state, { kind: 'consent_given' }, msg, deps, false);
-    }
-    log.debug('no state and no consent → consent prompt', { userId: msg.userId });
-    return {
-      text: 'Consent is required before we start. Reply YES to continue, or /start to read it again.',
-    };
+    return startInterview(msg, deps);
   }
 
   if (/^restart$/i.test(trimmed)) {
-    deps.store.clearState(msg.userId);
-    clearHistory(msg.userId);
     log.debug('restart → state cleared', { userId: msg.userId });
-    return { text: renderConsent(previousReportSummaries(msg.userId, deps)) };
+    return startInterview(msg, deps);
   }
 
   if (/^resume$/i.test(trimmed)) {

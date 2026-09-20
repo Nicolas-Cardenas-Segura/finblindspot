@@ -8,7 +8,7 @@ import type { FieldDef } from '../../src/questionnaire/fields.js';
 import type { RuleId } from '../../src/rules/rules.js';
 import {
   renderActionPlan,
-  renderConsent,
+  renderWelcome,
   renderProgress,
   renderQuestion,
   renderResults,
@@ -53,17 +53,19 @@ describe('roundHundred', () => {
   });
 });
 
-describe('renderConsent', () => {
-  it('includes the v1 consent copy and the reply instruction', () => {
-    const text = renderConsent();
+describe('renderWelcome', () => {
+  it('includes the educational disclosure and privacy copy', () => {
+    const text = renderWelcome();
     expect(text).toContain('not financial advice');
-    expect(text).toContain('Please do not enter bank logins');
-    expect(text).toContain('Reply YES to continue');
+    expect(text).toContain('Please do not send bank logins');
+    expect(text).toContain('stored only for you');
+    expect(text).not.toContain('YES');
+    expect(text).not.toContain('Consent');
     expect(text).not.toContain('I already hold these reports for you');
   });
 
   it('lists previously generated reports and how to download them', () => {
-    const text = renderConsent([
+    const text = renderWelcome([
       { index: 1, date: 'January 15, 2026', status: 'complete' },
       { index: 2, date: 'September 20, 2026', status: 'partial' },
     ]);
@@ -71,8 +73,9 @@ describe('renderConsent', () => {
     expect(text).toContain('1. January 15, 2026 — full report');
     expect(text).toContain('2. September 20, 2026 — partial report');
     expect(text).toContain('Reply "download 2" to get one of them again, or "download" for the latest.');
-    expect(text.indexOf('I already hold these reports')).toBeLessThan(text.indexOf('Two things first'));
-    expect(text).toContain('Reply YES to continue');
+    expect(text.indexOf('I already hold these reports')).toBeLessThan(text.indexOf('This is an educational assessment'));
+    expect(text).not.toContain('YES');
+    expect(text).not.toContain('Consent');
   });
 });
 

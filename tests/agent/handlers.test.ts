@@ -119,7 +119,6 @@ async function sameUntilDone(): Promise<Outgoing> {
 
 async function startInterview(): Promise<void> {
   await send('/start');
-  await send('YES');
 }
 
 beforeEach(() => {
@@ -132,16 +131,27 @@ beforeEach(() => {
 });
 
 describe('handleMessage', () => {
-  it('shows the consent text on /start', async () => {
+  it('starts the interview with the welcome text on /start', async () => {
     const out = await send('/start');
     expect(out.text).toContain('not financial advice');
+    expect(out.text).toContain('stored only for you');
+    expect(out.text).not.toContain('YES');
+    expect(out.text).not.toContain('Consent');
+    expect(state()?.answers.consent).toBe('yes');
   });
 
-  it('asks the first question after consent', async () => {
-    await send('/start');
-    const out = await send('YES');
+  it('asks the first question on /start', async () => {
+    const out = await send('/start');
     expect(fieldNow()?.id).toBe('age');
     expect(out.text).toContain('How old are you?');
+  });
+
+  it('starts the interview for a free-text first message with no state', async () => {
+    const out = await send('Hello');
+    expect(out.text).toContain('stored only for you');
+    expect(out.text).toContain('How old are you?');
+    expect(out.text).not.toContain('Consent');
+    expect(state()?.answers.consent).toBe('yes');
   });
 
   it('runs case A to a complete assessment, a nudge and a revisit', async () => {
