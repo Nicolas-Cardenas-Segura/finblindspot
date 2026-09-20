@@ -18,6 +18,7 @@ export async function classifyOutbound(text: string, deps: { client: OpenAI }): 
       ],
       max_tokens: 3,
       temperature: 0,
+      reasoning_effort: 'none',
     },
     'outbound classifier',
   );
