@@ -97,10 +97,14 @@ export function TURN_PROMPT(ctx: TurnContext): string {
       `A new part of the interview starts: "${ctx.sectionStart.title}". Ask it as one open question, in your own words, based on: ${ctx.sectionStart.opener} Make clear they can answer as much or as little as they like in one message and you will follow up on the rest.`,
     );
   } else {
-    constraints.push(`Question to ask, keep its exact meaning: ${f.prompt}`);
-    if (ctx.openInSection !== undefined && ctx.openInSection.length > 0) {
+    const others = ctx.openInSection ?? [];
+    if (others.length > 0) {
       constraints.push(
-        `Still open in this part, which they may cover in the same reply if they like (do not list them all, just ask the question above): ${ctx.openInSection.map((o) => o.prompt).join(' | ')}`,
+        `What you need to learn next: ${f.prompt} Do not ask it as a form question. Ask one open, conversational question that invites them to talk about this part of their life so the answer comes out naturally (for example "tell me a bit about yourself" rather than "how old are you"), and that could also cover what is still open in this part: ${others.map((o) => o.prompt).join(' | ')}. Do not list these.`,
+      );
+    } else {
+      constraints.push(
+        `This is the only thing still open in this part, so ask it directly and specifically, keeping its exact meaning: ${f.prompt}`,
       );
     }
   }

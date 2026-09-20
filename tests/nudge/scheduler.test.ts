@@ -38,9 +38,10 @@ describe('dueAt', () => {
 
 describe('renderNudge', () => {
   it('renders the reminder sentence', () => {
-    expect(renderNudge(6)).toBe(
-      'It has been 6 months since your last check. Reply /revisit to update it in five minutes and see what moved.',
+    expect(renderNudge('2026-01-15')).toBe(
+      'You asked me to remind you to re-check your financial blind spots. Your last assessment was on 2026-01-15. Reply /revisit to update it and see what moved.',
     );
+    expect(renderNudge(undefined)).not.toContain('months');
   });
 });
 

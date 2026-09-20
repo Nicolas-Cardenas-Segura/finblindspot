@@ -27,15 +27,14 @@ export function dueAt(from: Date, months: 6 | 12, demoMinutes?: number): Date {
   return target;
 }
 
-export function renderNudge(months: 6 | 12): string {
-  return `It has been ${months} months since your last check. Reply /revisit to update it in five minutes and see what moved.`;
+export function renderNudge(assessedOn: string | undefined): string {
+  const since = assessedOn === undefined ? '' : ` on ${assessedOn}`;
+  return `You asked me to remind you to re-check your financial blind spots. Your last assessment was${since}. Reply /revisit to update it and see what moved.`;
 }
 
-function monthsFor(store: Store, n: Nudge): 6 | 12 {
+function assessedOn(store: Store, n: Nudge): string | undefined {
   const assessment = store.listAssessments(n.userId).find((a) => a.id === n.assessmentId);
-  if (!assessment) return 6;
-  const elapsed = new Date(n.dueAt).getTime() - new Date(assessment.created_at).getTime();
-  return elapsed > 9 * 30 * 24 * 3_600_000 ? 12 : 6;
+  return assessment?.created_at.slice(0, 10);
 }
 
 export function startNudgeScheduler(deps: {
@@ -52,8 +51,7 @@ export function startNudgeScheduler(deps: {
     log.debug('tick', { at, due: due.length });
     let sent = 0;
     for (const nudge of due) {
-      const months = monthsFor(deps.store, nudge);
-      const text = renderNudge(months);
+      const text = renderNudge(assessedOn(deps.store, nudge));
       try {
         await deps.send(nudge.userId, text);
       } catch (error) {
@@ -61,7 +59,7 @@ export function startNudgeScheduler(deps: {
         continue;
       }
       deps.store.markNudgeSent(nudge.id, now().toISOString());
-      log.info('nudge sent', { nudgeId: nudge.id, userId: nudge.userId, months, dueAt: nudge.dueAt, text });
+      log.info('nudge sent', { nudgeId: nudge.id, userId: nudge.userId, dueAt: nudge.dueAt, text });
       sent += 1;
     }
     return sent;

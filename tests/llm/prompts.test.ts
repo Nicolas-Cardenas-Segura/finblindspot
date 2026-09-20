@@ -168,10 +168,20 @@ describe('TURN_PROMPT', () => {
       today: 'January 15, 2026',
       openInSection: [housing],
     });
-    expect(follow).toContain('keep its exact meaning');
-    expect(follow).toContain(`Still open in this part`);
+    expect(follow).toContain('Do not ask it as a form question');
     expect(follow).toContain(housing.prompt);
     expect(follow).toContain('but not the current question');
+
+    const last = TURN_PROMPT({
+      field: incomeField,
+      event: { kind: 'partial_stored', fieldIds: ['spend_living'] },
+      history: [],
+      redacted: false,
+      today: 'January 15, 2026',
+      openInSection: [],
+    });
+    expect(last).toContain('only thing still open');
+    expect(last).toContain('keep its exact meaning');
   });
 
   it('accepts a declined answer on a required field without pushing back', () => {

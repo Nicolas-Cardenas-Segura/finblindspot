@@ -61,7 +61,7 @@ export function amount(value: number | null, currency: Currency): string {
 
 export function renderConsent(): string {
   return [
-    `Hi, I'm ${ASSISTANT_NAME}. In about ten minutes I'll help you see where you stand: what you might be overlooking, and whether you're on track for the retirement you want.`,
+    `Hi, I'm ${ASSISTANT_NAME}. I'll help you see where you stand: what you might be overlooking, and whether you're on track for the retirement you want.`,
     '',
     'Rough figures are fine. Answer in your own words, say "don\'t know" when you don\'t, and ask me anything along the way.',
     '',
