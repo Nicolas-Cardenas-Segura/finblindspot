@@ -38,7 +38,7 @@ const EnvSchema = z.object({
       }
       return n;
     }),
-  IDLE_PROPOSE_STOP_SECONDS: z.coerce.number().int().positive().default(45),
+  IDLE_PROPOSE_STOP_SECONDS: z.coerce.number().int().positive().default(120),
   LOG_LEVEL: z
     .string()
     .optional()
