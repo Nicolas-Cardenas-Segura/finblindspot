@@ -1,0 +1,2738 @@
+{
+  "version": 1,
+  "change": "init-blindspot-agent",
+  "baseRevision": "f132d07121c4be25b9b3305ccd46b5188cc2eb73",
+  "budget": {
+    "maxParallel": 8,
+    "maxAttempts": 2,
+    "maxTokens": 4000000,
+    "overheadTokens": 20000,
+    "maxPacketChars": 60000,
+    "maxOutputTokens": 4000
+  },
+  "tasks": [
+    {
+      "id": "1.1",
+      "title": "Create package.json",
+      "instructions": "Create `package.json` (type `module`, scripts `dev`, `start`, `test`, `typecheck`), `tsconfig.json` (ES2022, `strict`, `moduleResolution: bundler`, `resolveJsonModule`, `outDir: dist`), `vitest.config.ts`, `.gitignore` (`node_modules`, `dist`, `.env`, `*.sqlite`), and add dependencies `@mastra/core`, `openai`, `zod`, `dotenv`, `better-sqlite3`, `grammy` and dev dependencies `typescript`, `vitest`, `tsx`, `@types/better-sqlite3`. Done when: `npm install && npm run typecheck && npm test` exit 0 (test run may report \"no test files\").",
+      "dependsOn": [],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 7,
+          "end": 7
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "package.json",
+        "tsconfig.json",
+        "vitest.config.ts",
+        ".gitignore"
+      ],
+      "checks": [
+        "npm run typecheck",
+        "npm test"
+      ],
+      "acceptance": [
+        "`npm install && npm run typecheck && npm test` exit 0 (test run may report \"no test files\")."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "implemented by parent in base revision"
+      ]
+    },
+    {
+      "id": "1.2",
+      "title": "Create .env.example",
+      "instructions": "Create `.env.example` listing `TELEGRAM_BOT_TOKEN`, `NEBIUS_API_KEY`, `NEBIUS_BASE_URL=https://api.tokenfactory.nebius.com/v1/`, `GALTEA_API_KEY`, `DATABASE_PATH=./data/finblindspot.sqlite`, `NUDGE_TICK_SECONDS=3600`, `NUDGE_DEMO_MINUTES=` (empty = real months), and create `src/config/env.ts` exporting `export interface Env { TELEGRAM_BOT_TOKEN: string; NEBIUS_API_KEY: string; NEBIUS_BASE_URL: string; GALTEA_API_KEY?: string; DATABASE_PATH: string; NUDGE_TICK_SECONDS: number; NUDGE_DEMO_MINUTES?: number }` and `export function loadEnv(source?: NodeJS.ProcessEnv): Env` that zod-validates and throws a readable error listing missing keys. Done when: `tests/config/env.test.ts` passes with cases: all keys present -> returns object; missing `NEBIUS_API_KEY` -> throws with key name in message.",
+      "dependsOn": [
+        "1.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 8,
+          "end": 8
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        ".env.example",
+        "src/config/env.ts",
+        "tests/config/env.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/config/env.test.ts"
+      ],
+      "acceptance": [
+        "`tests/config/env.test.ts` passes with cases: all keys present -> returns object; missing `NEBIUS_API_KEY` -> throws with key name in message."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "implemented by parent in base revision"
+      ]
+    },
+    {
+      "id": "1.3",
+      "title": "Create src/llm/nebius.ts",
+      "instructions": "Create `src/llm/nebius.ts` exporting `export const MODELS = { interview: 'deepseek-ai/DeepSeek-V4.1-Flash', guardrail: 'nvidia/Nemotron-3_5-Lightning' } as const` and `export function createNebiusClient(env: Pick<Env, 'NEBIUS_API_KEY' | 'NEBIUS_BASE_URL'>): OpenAI`. Done when: `npm run typecheck` exits 0.",
+      "dependsOn": [
+        "1.1",
+        "1.2"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 9,
+          "end": 9
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/llm/nebius.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run typecheck` exits 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "implemented by parent in base revision"
+      ]
+    },
+    {
+      "id": "1.4",
+      "title": "Spike",
+      "instructions": "Spike (needs `NEBIUS_API_KEY`): create `scripts/verify-nebius.ts` that lists models via `client.models.list()` and sends one 5-token completion to each entry of `MODELS`, printing `ok`/`missing` per model. If a model is missing, replace the id in `MODELS` with the closest fast chat model and record the swap under `design.md` Decision 9. Done when: `npx tsx scripts/verify-nebius.ts` prints `ok` for both ids now in `MODELS`.",
+      "dependsOn": [
+        "1.3"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "blocked",
+      "attempts": 0,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 10,
+          "end": 10
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "scripts/verify-nebius.ts",
+        "src/llm/nebius.ts",
+        "openspec/changes/init-blindspot-agent/design.md"
+      ],
+      "checks": [
+        "npx tsx scripts/verify-nebius.ts"
+      ],
+      "acceptance": [
+        "`npx tsx scripts/verify-nebius.ts` prints `ok` for both ids now in `MODELS`."
+      ],
+      "reviewed": false,
+      "evidence": [
+        "blocked: needs NEBIUS_API_KEY"
+      ]
+    },
+    {
+      "id": "1.5",
+      "title": "Spike",
+      "instructions": "Spike: check whether the installed `@mastra/core` exports a Telegram channel/adapter (search `node_modules/@mastra/core` for `telegram`). Record a one-line note under `design.md` Decision 8 (\"Telegram transport: Mastra adapter\" or \"Telegram transport: grammy polling\"). Done when: the note exists and states which transport task 12.4 uses.",
+      "dependsOn": [
+        "1.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 11,
+          "end": 11
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "openspec/changes/init-blindspot-agent/design.md"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "the note exists and states which transport task 12.4 uses."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "implemented by parent in base revision"
+      ]
+    },
+    {
+      "id": "2.1",
+      "title": "Create src/config/assumptions.ts",
+      "instructions": "Create `src/config/assumptions.ts` exporting `DEFAULT_ASSUMPTIONS = { inflation_rate: 0.03, investment_growth_rate: 0.05, cash_growth_rate: 0.02, property_growth_rate: 0.03, withdrawal_rate: 0.04 }` and `ASSUMPTION_RANGES` (inflation 0.02–0.05, investment 0.03–0.07, cash 0.001–0.04, property 0.001–0.05, withdrawal 0.03–0.05) per v1 §3G. Done when: `tests/config/assumptions.test.ts` passes asserting every default lies within its range.",
+      "dependsOn": [
+        "1.1",
+        "3.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 15,
+          "end": 15
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/config/assumptions.ts",
+        "tests/config/assumptions.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/config/assumptions.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/config/assumptions.test.ts` passes asserting every default lies within its range."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "2.2",
+      "title": "Create src/config/countryCurrency.ts",
+      "instructions": "Create `src/config/countryCurrency.ts` exporting `COUNTRY_CURRENCY: Record<string, string>` covering at least the EU-27, GB, US, CH, NO, AU, CA, NZ, SG, HK, JP, AE, ZA, BR, MX, IN (ISO-3166 alpha-2 -> ISO-4217). Done when: `tests/config/countryCurrency.test.ts` passes asserting `DE -> EUR`, `GB -> GBP`, `US -> USD`, `CH -> CHF`, and every value is 3 upper-case letters.",
+      "dependsOn": [
+        "1.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 16,
+          "end": 16
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/config/countryCurrency.ts",
+        "tests/config/countryCurrency.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/config/countryCurrency.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/config/countryCurrency.test.ts` passes asserting `DE -> EUR`, `GB -> GBP`, `US -> USD`, `CH -> CHF`, and every value is 3 upper-case letters."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "3.1",
+      "title": "Create src/questionnaire/schema.ts",
+      "instructions": "Create `src/questionnaire/schema.ts` exporting the types `Currency`, `YesNoDk`, `Unknown`, `NotApplicable`, `Topic`, `PensionRow`, `Answers`, `Assumptions`, `FieldId` and the zod schemas `AnswersSchema`, `PensionRowSchema`, `AssumptionsSchema` exactly as in Shared Types; money fields `number | null` finite `>= 0`; `age` 18–80 integer; `retire_age` integer 18–100; `debt_max_rate` `>= 0`; `will_year` 1950–current year; country codes 2 upper-case letters. Done when: `npm run typecheck` exits 0.",
+      "dependsOn": [
+        "1.1"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 20,
+          "end": 20
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/questionnaire/schema.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run typecheck` exits 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "implemented by parent in base revision"
+      ]
+    },
+    {
+      "id": "3.2",
+      "title": "Create tests/questionnaire/schema.test.ts",
+      "instructions": "Create `tests/questionnaire/schema.test.ts` with cases: a full valid `Answers` object parses; `age: 12` fails; `cash_total: null` parses (unknown); `cash_total: -1` fails; `education_funded: 'n/a'` parses; `base_currency: 'CHF'` fails; `AssumptionsSchema` rejects `investment_growth_rate: 0`. Done when: the file passes.",
+      "dependsOn": [
+        "3.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 21,
+          "end": 21
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "tests/questionnaire/schema.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/questionnaire/schema.test.ts"
+      ],
+      "acceptance": [
+        "the file passes."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "3.3",
+      "title": "Create src/questionnaire/fields.ts",
+      "instructions": "Create `src/questionnaire/fields.ts` exporting `Section`, `FieldType`, `FieldDef`, `FIELDS` (every v1 §3 field in sections A, B, C, E, F, G, H in document order, with `prompt` copied verbatim from the \"What they see\" column, `rationale` as one sentence derived from the \"Used for\" column, `helper` for `home_value`, `retire_income_monthly` and each assumption, `showIf` for `education_funded` (`dependants > 0`), `decision_maker`/`partner_knows` (`has_partner === 'household'`), `will_country`/`will_year` (`will === 'yes'`), `life_cover_amount` (`life_cover === 'yes'`), `zeroValid` where v1 says \"0 valid\", `allowUnknown: true` for every money and yes/no field) and `PENSION_FIELDS` (the seven section D row fields; `beneficiaries_named` sits in `FIELDS` after the repeat). Done when: `tests/questionnaire/fields.test.ts` passes asserting: sections appear in order A..H; every `FieldId` in `Answers` except `pensions` appears exactly once across `FIELDS`; every field with `type: 'money'` has `allowUnknown: true`; every field has a non-empty `rationale`; `base_currency` is the first section-B field; `retire_age` prompt equals \"At what age would you like to retire?\".",
+      "dependsOn": [
+        "3.1"
+      ],
+      "risk": "medium",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 22,
+          "end": 22
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/conversational-interview/spec.md",
+          "start": 1,
+          "end": 106
+        }
+      ],
+      "writes": [
+        "src/questionnaire/fields.ts",
+        "tests/questionnaire/fields.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/questionnaire/fields.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/questionnaire/fields.test.ts` passes asserting: sections appear in order A..H; every `FieldId` in `Answers` except `pensions` appears exactly once across `FIELDS`; every field with `type: 'money'` has `allowUnknown: true`; every field has a non-empty `rationale`; `base_currency` is the first section-B field; `retire_age` prompt equals \"At what age would you like to retire?\"."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "3.4",
+      "title": "Create tests/fixtures/cases.ts",
+      "instructions": "Create `tests/fixtures/cases.ts` exporting `BASE: Answers` (v1 §10 base inputs: `age 40`, `retire_age 65`, `retire_income_monthly 2000`, one pension row `{ pension_type: 'state', pension_fixed_income_monthly: 600, pension_start_age: 65, pension_value: 'n/a', pension_contribution_monthly: 0, pension_contributions_continue: 'no' }`, one pension row `{ pension_type: 'workplace_dc', pension_value: 120000, pension_contribution_monthly: 500, pension_contributions_continue: 'yes', pension_start_age: 65, pension_fixed_income_monthly: 'n/a' }`, `investments_total 50000`, `cash_total 30000`, spend fields summing to `3000`, `saving_monthly_other 0`, `debt_at_retirement 0`, `property_value 0`, `property_mortgage 0`, `property_for_retirement 'no'`, all protection/succession fields `'yes'`, `will_country = residence_country`, `will_year` current year, `learning_priorities []`) and `CASES: Record<'A' | 'B' | 'C' | 'D', { answers: Answers; expected: { required_pot: number; projected_assets: number; position: number; position_today?: number; extra_monthly?: number; at3?: number; at5?: number; rule9: boolean } }>` with B = BASE + `saving_monthly_other 200`, `property_value 200000`, `property_mortgage 120000`, `property_for_retirement 'yes'`, `debt_at_retirement 15000`; C = BASE + `retire_income_monthly 3000`; D = BASE with state `pension_start_age 67`; expected values from v1 §10 (A 879387/907888/28501, at3 −264628, at5 204379, today 13612; B 879387/1179492/300105; C 1507520/907888/−599632, today −286388, extra 1007; D 1256267/907888/−348379, today −166388, extra 585, rule9 true). Done when: `tests/fixtures/cases.test.ts` passes asserting all four `answers` satisfy `AnswersSchema`.",
+      "dependsOn": [
+        "3.1"
+      ],
+      "risk": "medium",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 23,
+          "end": 23
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md",
+          "start": 1,
+          "end": 137
+        }
+      ],
+      "writes": [
+        "tests/fixtures/cases.ts",
+        "tests/fixtures/cases.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/fixtures/cases.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/fixtures/cases.test.ts` passes asserting all four `answers` satisfy `AnswersSchema`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "4.1",
+      "title": "Create src/privacy/sensitiveFilter.ts",
+      "instructions": "Create `src/privacy/sensitiveFilter.ts` exporting `RedactionResult` and `redactSensitive(text: string): RedactionResult` using regexes for IBAN (`[A-Z]{2}\\d{2}[A-Z0-9]{11,30}`), Luhn-valid 13-19 digit sequences (spaces/dashes allowed), passport-like (`[A-Z]{1,2}\\d{6,9}`), tax ids (US SSN `\\d{3}-\\d{2}-\\d{4}`, UK NINO `[A-Z]{2}\\d{6}[A-D]`, Spanish NIE/NIF `[XYZ]?\\d{7,8}[A-Z]`), and bare digit runs of 9+ digits; replace each match with `[redacted]`. Done when: `npm run typecheck` exits 0.",
+      "dependsOn": [
+        "1.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 27,
+          "end": 27
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/privacy/sensitiveFilter.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run typecheck` exits 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "4.2",
+      "title": "Create tests/privacy/sensitiveFilter.test.ts",
+      "instructions": "Create `tests/privacy/sensitiveFilter.test.ts` with cases: `\"DE89 3704 0044 0532 0130 00\"` -> `iban`; `\"4111 1111 1111 1111\"` -> `card`; `\"123-45-6789\"` -> `tax_id`; `\"about 12k\"`, `\"35%\"`, `\"2500 a month\"`, `\"I'm 42\"`, `\"120000\"` -> unchanged, `redacted: false`. Done when: the file passes.",
+      "dependsOn": [
+        "4.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 28,
+          "end": 28
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "tests/privacy/sensitiveFilter.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/privacy/sensitiveFilter.test.ts"
+      ],
+      "acceptance": [
+        "the file passes."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "5.1",
+      "title": "Create src/engine/derived.ts",
+      "instructions": "Create `src/engine/derived.ts` exporting `Derived` and `computeDerived(a: Answers): Derived` where `monthly_spending = spend_housing + spend_living + spend_debt + spend_other` (null if any is null), `monthly_surplus = income_monthly - monthly_spending`, `financial_assets = cash_total + investments_total + sum(numeric pension_value)`, `property_net = (home_value - home_mortgage) + (property_value - property_mortgage)`, `net_worth = financial_assets + property_net - debt_total`; any null operand -> that output null. Done when: `tests/engine/derived.test.ts` passes with `BASE` -> `monthly_spending 3000`, `financial_assets 200000`; `spend_other: null` -> `monthly_spending null` and `monthly_surplus null`; `debt_total: 0` -> `net_worth` equals `financial_assets + property_net`.",
+      "dependsOn": [
+        "3.1",
+        "3.4"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 32,
+          "end": 32
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md",
+          "start": 1,
+          "end": 137
+        }
+      ],
+      "writes": [
+        "src/engine/derived.ts",
+        "tests/engine/derived.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/engine/derived.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/engine/derived.test.ts` passes with `BASE` -> `monthly_spending 3000`, `financial_assets 200000`; `spend_other: null` -> `monthly_spending null` and `monthly_surplus null`; `debt_total: 0` -> `net_worth` equals `financial_assets + property_net`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; A–D projection tests pass; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "5.2",
+      "title": "Create src/engine/validate.ts",
+      "instructions": "Create `src/engine/validate.ts` exporting `ValidationError` and `validateAnswers(a: Answers, s: Assumptions): ValidationError[]` implementing v1 §5 \"Validation\": `retire_age <= age` -> `retire_age_not_after_age`; any assumption rate `<= 0` -> `rate_not_positive`; any numeric money field `< 0` -> `negative_money`; any numeric `pension_start_age` outside `[age, 90]` -> `pension_start_age_out_of_range`. Done when: `tests/engine/validate.test.ts` passes with `BASE` -> `[]`; `retire_age 40` -> one error; `cash_growth_rate 0` -> one error; `pension_start_age 95` -> one error.",
+      "dependsOn": [
+        "3.1",
+        "3.4"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 33,
+          "end": 33
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md",
+          "start": 1,
+          "end": 137
+        }
+      ],
+      "writes": [
+        "src/engine/validate.ts",
+        "tests/engine/validate.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/engine/validate.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/engine/validate.test.ts` passes with `BASE` -> `[]`; `retire_age 40` -> one error; `cash_growth_rate 0` -> one error; `pension_start_age 95` -> one error."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "5.3",
+      "title": "Create src/engine/projection.ts",
+      "instructions": "Create `src/engine/projection.ts` exporting `RateResult`, `Results`, `computeProjection(a: Answers, s: Assumptions, d: Derived): Results` implementing v1 §5 steps 1–11 exactly as written in `specs/calculation-engine/spec.md`: `mode 'already_retired'` if `retire_age <= age`; `mode 'no_target'` with all numeric results null if `retire_income_monthly` is null; pension rows with `pension_start_age > retire_age` (or null start age) excluded from both value and fixed income and listed in `excluded_pensions`; `property_equity_if_earmarked` only when `property_for_retirement === 'yes'`; every null term skipped and recorded in `missing_fields`, setting `is_minimum_estimate`; `mode 'no_gap'` when `income_needed_today === 0`; `sensitivity` at 0.03, `s.withdrawal_rate`, 0.05; `extra_monthly` only when `position < 0`. No rounding. Done when: `npm run typecheck` exits 0.",
+      "dependsOn": [
+        "5.1"
+      ],
+      "risk": "high",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 34,
+          "end": 34
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md",
+          "start": 1,
+          "end": 137
+        }
+      ],
+      "writes": [
+        "src/engine/projection.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run typecheck` exits 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; A–D projection tests pass; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "5.4",
+      "title": "Create tests/engine/projection.test.ts asserting, for each of CASES.A–D, required_pot, pro",
+      "instructions": "Create `tests/engine/projection.test.ts` asserting, for each of `CASES.A–D`, `required_pot`, `projected_assets`, `position` within `±1` of expected, `position_today` and `extra_monthly` within `±1` where given, `sensitivity` at 0.03/0.05 for A within `±1`, `excluded_pensions.length === 1` for D and `0` otherwise; plus `retire_income_monthly: null` -> `mode 'no_target'`; `cash_total: null` -> `is_minimum_estimate true` and `missing_fields` contains `'cash_total'`; `retire_age: 40` -> `mode 'already_retired'`; fixed income 3000 with target 2000 -> `mode 'no_gap'`, `required_pot 0`. Done when: the file passes.",
+      "dependsOn": [
+        "5.3",
+        "3.4"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 35,
+          "end": 35
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md",
+          "start": 1,
+          "end": 137
+        }
+      ],
+      "writes": [
+        "tests/engine/projection.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/engine/projection.test.ts"
+      ],
+      "acceptance": [
+        "the file passes."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; A–D projection tests pass; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "6.1",
+      "title": "Create src/rules/rules.ts",
+      "instructions": "Create `src/rules/rules.ts` exporting `RuleId`, `Severity`, `RuleContext`, `Rule`, `RULES` — the twenty v1 §6 rules in number order with the `id`, `topic` and base severity from the table in `specs/calculation-engine/spec.md`; `≠ yes` implemented as `!== 'yes'`; rules whose inputs are null and not listed as firing on null (1, 2, 15, 16, 20) return `false` when an operand is null; rule 6 uses `ctx.now.getFullYear() - will_year > 5`; rule 17 uses `COUNTRY_CURRENCY[retire_country] !== base_currency` (unmapped or null country -> that clause false); rule 19 reads `results.sensitivity` at 0.04. Done when: `tests/rules/rules.test.ts` passes asserting `RULES.length === 20`, numbers are `1..20` ascending, ids are unique, and severities match the table.",
+      "dependsOn": [
+        "5.3",
+        "2.2"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 39,
+          "end": 39
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md",
+          "start": 1,
+          "end": 137
+        }
+      ],
+      "writes": [
+        "src/rules/rules.ts",
+        "tests/rules/rules.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/rules/rules.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/rules/rules.test.ts` passes asserting `RULES.length === 20`, numbers are `1..20` ascending, ids are unique, and severities match the table."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; 20 rules + fires tests; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "6.2",
+      "title": "Create tests/rules/fires.test.ts",
+      "instructions": "Create `tests/rules/fires.test.ts` with one positive and one negative case per rule, built by mutating `BASE` (e.g. rule 1: `cash_total 8000` fires, `30000` does not; rule 3: `dependants 2, life_cover 'no'` fires, `life_cover 'yes'` does not; rule 8: `pension_value null` fires; rule 9: `CASES.D` fires, `CASES.A` does not; rule 13: `debt_total 5000, debt_max_rate null` fires, `debt_max_rate 5` does not; rule 14: `debt_at_retirement null` fires, `0` does not; rule 17: `retire_country 'GB'` with `base_currency 'EUR'` fires, `'DE'` does not; rule 19: `CASES.C` fires, `CASES.A` does not; rule 20: `retire_income_monthly 1500` with spending `3000` fires, `2000` does not). Done when: the file passes.",
+      "dependsOn": [
+        "6.1",
+        "3.4",
+        "5.4"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 40,
+          "end": 40
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md",
+          "start": 1,
+          "end": 137
+        }
+      ],
+      "writes": [
+        "tests/rules/fires.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/rules/fires.test.ts"
+      ],
+      "acceptance": [
+        "the file passes."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; 20 rules + fires tests; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "6.3",
+      "title": "Create src/rules/evaluate.ts",
+      "instructions": "Create `src/rules/evaluate.ts` exporting `FiredRule`, `evaluateRules(ctx: RuleContext): FiredRule[]` (fired rules in number order, `fired_at = ctx.now.toISOString()`), `applyTopicBump(fired: FiredRule[], priorities: Topic[]): FiredRule[]` (low->medium, medium->high, high stays), `selectActionPlan(fired: FiredRule[]): FiredRule[]` (sort severity high>medium>low then number asc, take 3). Done when: `tests/rules/evaluate.test.ts` passes with: `CASES.D` -> `evaluateRules` contains `pension_timing_gap` and `retirement_gap`; bump with `['retirement']` turns rule 20 low->medium and leaves rule 9 high; `selectActionPlan` on five fired rules `[#4 medium, #1 high, #15 low, #9 high, #12 medium]` returns `[1, 9, 4]`; two calls with the same input deep-equal.",
+      "dependsOn": [
+        "6.1",
+        "3.4"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 41,
+          "end": 41
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md",
+          "start": 1,
+          "end": 137
+        }
+      ],
+      "writes": [
+        "src/rules/evaluate.ts",
+        "tests/rules/evaluate.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/rules/evaluate.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/rules/evaluate.test.ts` passes with: `CASES.D` -> `evaluateRules` contains `pension_timing_gap` and `retirement_gap`; bump with `['retirement']` turns rule 20 low->medium and leaves rule 9 high; `selectActionPlan` on five fired rules `[#4 medium, #1 high, #15 low, #9 high, #12 medium]` returns `[1, 9, 4]`; two calls with the same input deep-equal."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; 20 rules + fires tests; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "7.1",
+      "title": "Create src/assess/assess.ts",
+      "instructions": "Create `src/assess/assess.ts` exporting `Assessment` and `runAssessment(a: Answers, s: Assumptions, now = new Date()): Pick<Assessment, 'derived' | 'results' | 'blind_spots'>` = `computeDerived` -> `computeProjection` -> `evaluateRules` -> `applyTopicBump(a.learning_priorities)`; `blind_spots` is the full bumped fired list (the action plan is selected at render time). Done when: `tests/assess/assess.test.ts` passes with `CASES.A` -> `results.position` within ±1 of 28501 and `blind_spots` does not contain `retirement_gap`; `CASES.D` -> contains `pension_timing_gap`.",
+      "dependsOn": [
+        "6.3",
+        "5.3"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 45,
+          "end": 45
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/assess/assess.ts",
+        "tests/assess/assess.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/assess/assess.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/assess/assess.test.ts` passes with `CASES.A` -> `results.position` within ±1 of 28501 and `blind_spots` does not contain `retirement_gap`; `CASES.D` -> contains `pension_timing_gap`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "7.2",
+      "title": "Create src/assess/compare.ts",
+      "instructions": "Create `src/assess/compare.ts` exporting `Delta` and `compare(previous: Assessment, current: Assessment): Delta`: re-run `runAssessment(previous.answers, current.assumptions)` and `runAssessment(current.answers, current.assumptions)`, then `position_change = cur.position_today - prev.position_today` (null if either null), `net_worth_change`, `monthly_saving_change` (saving_monthly_other + sum pension contributions), `emergency_months_change` (`cash_total / monthly_spending`), set differences of fired `rule_id`s for closed/new/still_open, `unknowns_resolved` = field IDs (including `pensions[i].pension_value`) null in previous and non-null in current, `assumptions_changed = !deepEqual(previous.assumptions, current.assumptions)`. Done when: `tests/assess/compare.test.ts` passes with: previous `BASE` with `cash_total 4000, pension_value null` vs current `BASE` -> `blind_spots_closed` contains `thin_emergency_fund` and `pension_visibility`, `unknowns_resolved` contains the pension value field, `emergency_months_change` within ±0.01 of `8.667`; previous stored with `investment_growth_rate 0.05` and current `0.06` -> `assumptions_changed true` and the previous side is recomputed (position differs from `previous.results.position`).",
+      "dependsOn": [
+        "7.1"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 46,
+          "end": 46
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/baseline-comparison/spec.md",
+          "start": 1,
+          "end": 79
+        }
+      ],
+      "writes": [
+        "src/assess/compare.ts",
+        "tests/assess/compare.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/assess/compare.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/assess/compare.test.ts` passes with: previous `BASE` with `cash_total 4000, pension_value null` vs current `BASE` -> `blind_spots_closed` contains `thin_emergency_fund` and `pension_visibility`, `unknowns_resolved` contains the pension value field, `emergency_months_change` within ±0.01 of `8.667`; previous stored with `investment_growth_rate 0.05` and current `0.06` -> `assumptions_changed true` and the previous side is recomputed (position differs from `previous.results.position`)."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "8.1",
+      "title": "Create src/store/db.ts",
+      "instructions": "Create `src/store/db.ts` exporting `ComplianceTrigger`, `Store`, `openStore(path: string | ':memory:'): Store` that opens `better-sqlite3`, runs `CREATE TABLE IF NOT EXISTS` for `assessments(id TEXT PRIMARY KEY, user_id TEXT, created_at TEXT, status TEXT, base_currency TEXT, answers_json TEXT, assumptions_json TEXT, derived_json TEXT, results_json TEXT, blind_spots_json TEXT)`, `interview_state(user_id TEXT PRIMARY KEY, state_json TEXT)`, `compliance_triggers(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, created_at TEXT, draft TEXT, verdict TEXT, attempt INTEGER, reason TEXT)`, and returns an object whose methods delegate to `assessments.ts` and `triggers.ts`. Done when: `npm run typecheck` exits 0 (method bodies may throw `not implemented` until 8.2–8.3).",
+      "dependsOn": [
+        "7.1",
+        "11.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 50,
+          "end": 50
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/store/db.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run typecheck` exits 0 (method bodies may throw `not implemented` until 8.2–8.3)."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "8.2",
+      "title": "Create src/store/assessments.ts",
+      "instructions": "Create `src/store/assessments.ts` exporting `insertAssessment(db, a)`, `latestComplete(db, userId)`, `listAssessments(db, userId)` (ascending `created_at`), `saveState(db, s)` (upsert), `loadState(db, userId)`, `clearState(db, userId)`, `deleteUserAssessments(db, userId): { assessments: number; states: number }`; `insertAssessment` uses plain `INSERT` so a duplicate id throws; no `UPDATE` statement exists in the file. Wire them into `openStore`. Done when: `tests/store/assessments.test.ts` passes with: insert two complete assessments for `u1` -> `latestComplete` returns the later one and `listAssessments` length 2; inserting the same id twice throws; `saveState` then `loadState` round-trips; `deleteUserAssessments('u1')` returns counts and `listAssessments('u1')` is empty; the file source contains no `UPDATE assessments`.",
+      "dependsOn": [
+        "8.1"
+      ],
+      "risk": "medium",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 51,
+          "end": 51
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/store/assessments.ts",
+        "src/store/db.ts",
+        "tests/store/assessments.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/store/assessments.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/store/assessments.test.ts` passes with: insert two complete assessments for `u1` -> `latestComplete` returns the later one and `listAssessments` length 2; inserting the same id twice throws; `saveState` then `loadState` round-trips; `deleteUserAssessments('u1')` returns counts and `listAssessments('u1')` is empty; the file source contains no `UPDATE assessments`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "8.3",
+      "title": "Create src/store/nudges.ts",
+      "instructions": "Create `src/store/nudges.ts` exporting `insertNudge(db, n)`, `dueNudges(db, now)` (`sent_at IS NULL AND cancelled = 0 AND due_at <= now`, ascending `due_at`), `markNudgeSent(db, id, sentAt)`, `cancelPendingNudges(db, userId, at): number`, `deleteUserNudges(db, userId): number`; add table `nudges(id TEXT PRIMARY KEY, user_id TEXT, assessment_id TEXT, due_at TEXT, sent_at TEXT, cancelled INTEGER DEFAULT 0)` to `db.ts` and wire the methods into `openStore`. Done when: `tests/store/nudges.test.ts` passes with: insert due and future nudges -> `dueNudges(now)` returns only the due one; after `markNudgeSent` it returns none; `cancelPendingNudges('u1')` returns 1 and the future nudge is no longer due at any time; a nudge with `sent_at` set is never returned.",
+      "dependsOn": [
+        "8.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 52,
+          "end": 52
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/store/nudges.ts",
+        "src/store/db.ts",
+        "tests/store/nudges.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/store/nudges.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/store/nudges.test.ts` passes with: insert due and future nudges -> `dueNudges(now)` returns only the due one; after `markNudgeSent` it returns none; `cancelPendingNudges('u1')` returns 1 and the future nudge is no longer due at any time; a nudge with `sent_at` set is never returned."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "8.4",
+      "title": "Create src/store/triggers.ts",
+      "instructions": "Create `src/store/triggers.ts` exporting `logTrigger(db, t)`, `countTriggers(db, since?)`, `deleteUserTriggers(db, userId): number` and wire them plus `deleteUser` (combining 8.2, 8.3 and 8.4 counts) into `openStore`. Done when: `tests/store/triggers.test.ts` passes with: log 3 triggers -> `countTriggers()` is 3; `countTriggers(futureIso)` is 0; `deleteUser('u1')` returns `{ assessments, states, nudges, triggers }` and subsequent counts are 0.",
+      "dependsOn": [
+        "8.2",
+        "8.3"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 53,
+          "end": 53
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/store/triggers.ts",
+        "src/store/db.ts",
+        "tests/store/triggers.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/store/triggers.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/store/triggers.test.ts` passes with: log 3 triggers -> `countTriggers()` is 3; `countTriggers(futureIso)` is 0; `deleteUser('u1')` returns `{ assessments, states, nudges, triggers }` and subsequent counts are 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "9.1",
+      "title": "Create src/llm/prompts.ts",
+      "instructions": "Create `src/llm/prompts.ts` exporting `SYSTEM_PROMPT` (education-only role; the v1 §1 \"May / May not\" lists verbatim), `INTENT_PROMPT(field: FieldDef, answered: FieldId[], currency?: Currency): string` (instructs: classify the reply for the current field and return JSON `{ \"intent\": \"answer\" | \"dont_know\" | \"question\" | \"correction\" | \"skip_request\" | \"off_topic\", \"value\"?: <typed value>, \"field_id\"?: <one of answered> }`; `value` required for `answer`/`correction`; includes the field's type, options, `zeroValid`, the list of already-answered field IDs with their prompts, and three worked examples: \"about 4.2k after tax\" -> answer 4200, \"why do you need this?\" -> question, \"actually my rent is 1500\" -> correction spend_housing 1500), `EXPLANATION_PROMPT(content: BlindSpotContent, numbers: Record<string, number | null>): string` (rephrase `why` only, 2–3 sentences, second person, may cite only the provided numbers, no products/providers/transfers), `GUARDRAIL_PROMPT` (return exactly `ALLOW` or `BLOCK`; BLOCK on product/security/provider recommendations, buy/sell/move/transfer/consolidate instructions, allocation percentages, promises of outcomes). Done when: `tests/llm/prompts.test.ts` passes asserting each prompt contains its key phrases (`\"not financial advice\"`, `\"correction\"`, `\"off_topic\"`, `\"ALLOW\"`, `\"BLOCK\"`, `\"transfer\"`).",
+      "dependsOn": [
+        "3.3",
+        "10.2"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 57,
+          "end": 57
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/advice-guardrail/spec.md",
+          "start": 1,
+          "end": 71
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/conversational-interview/spec.md",
+          "start": 1,
+          "end": 106
+        }
+      ],
+      "writes": [
+        "src/llm/prompts.ts",
+        "tests/llm/prompts.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/llm/prompts.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/llm/prompts.test.ts` passes asserting each prompt contains its key phrases (`\"not financial advice\"`, `\"correction\"`, `\"off_topic\"`, `\"ALLOW\"`, `\"BLOCK\"`, `\"transfer\"`)."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "9.2",
+      "title": "Create src/questionnaire/intent.ts",
+      "instructions": "Create `src/questionnaire/intent.ts` exporting `IntentKind`, `Intent`, `IntentContext`, `classifyIntentDeterministic(field, reply)` (reply starting with `/` -> `command`; exact match of a `field.options` entry -> `answer`; a \"don't know\" synonym (`don't know`, `dont know`, `not sure`, `no idea`, `unknown`, `?`) -> `dont_know`; a bare number on a number/money field -> `answer` after parsing; otherwise `null`) and `classifyIntent(field, reply, ctx, deps)`: use the deterministic result when non-null; otherwise call `MODELS.interview` with `INTENT_PROMPT` and `response_format: { type: 'json_object' }`, parse, validate `value` with the field's zod parser (for `correction`, with the parser of `field_id`, which must be in `Object.keys(ctx.answered)`); invalid value or unknown `field_id` or unparsable JSON -> `{ kind: 'off_topic' }` (never an answer). Done when: `tests/questionnaire/intent.test.ts` passes with a stubbed client: `\"/forget\"` -> command, stub not called; `\"not sure\"` -> dont_know, stub not called; `\"yes\"` on a yes/no field -> answer `'yes'`, stub not called; `\"4200\"` on `income_monthly` -> answer 4200, stub not called; stub `{ intent: 'answer', value: 4200 }` -> answer 4200; stub `{ intent: 'answer', value: 12 }` for `age` -> off_topic; stub `{ intent: 'question' }` -> question; stub `{ intent: 'correction', field_id: 'spend_housing', value: 1500 }` with `spend_housing` answered -> correction; same with `spend_housing` not yet answered -> off_topic; stub returning `\"garbage\"` -> off_topic.",
+      "dependsOn": [
+        "9.1",
+        "3.3"
+      ],
+      "risk": "high",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 58,
+          "end": 58
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/conversational-interview/spec.md",
+          "start": 1,
+          "end": 106
+        }
+      ],
+      "writes": [
+        "src/questionnaire/intent.ts",
+        "tests/questionnaire/intent.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/questionnaire/intent.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/questionnaire/intent.test.ts` passes with a stubbed client: `\"/forget\"` -> command, stub not called; `\"not sure\"` -> dont_know, stub not called; `\"yes\"` on a yes/no field -> answer `'yes'`, stub not called; `\"4200\"` on `income_monthly` -> answer 4200, stub not called; stub `{ intent: 'answer', value: 4200 }` -> answer 4200; stub `{ intent: 'answer', value: 12 }` for `age` -> off_topic; stub `{ intent: 'question' }` -> question; stub `{ intent: 'correction', field_id: 'spend_housing', value: 1500 }` with `spend_housing` answered -> correction; same with `spend_housing` not yet answered -> off_topic; stub returning `\"garbage\"` -> off_topic."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker commit cherry-picked (branch also carried already-integrated 9.1); parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "9.3",
+      "title": "Create src/guardrail/classifier.ts",
+      "instructions": "Create `src/guardrail/classifier.ts` exporting `Verdict` and `classifyOutbound(text: string, deps: { client: OpenAI }): Promise<Verdict>` calling `MODELS.guardrail` with `GUARDRAIL_PROMPT`, `max_tokens: 3`, `temperature: 0`; any response not starting with `ALLOW` is `BLOCK`. Done when: `tests/guardrail/classifier.test.ts` passes with a stubbed client returning `\"ALLOW\"`, `\"BLOCK\"`, `\"allow\"`, `\"\"` -> `ALLOW`, `BLOCK`, `BLOCK`, `BLOCK`.",
+      "dependsOn": [
+        "9.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 59,
+          "end": 59
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/guardrail/classifier.ts",
+        "tests/guardrail/classifier.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/guardrail/classifier.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/guardrail/classifier.test.ts` passes with a stubbed client returning `\"ALLOW\"`, `\"BLOCK\"`, `\"allow\"`, `\"\"` -> `ALLOW`, `BLOCK`, `BLOCK`, `BLOCK`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "9.4",
+      "title": "Create src/guardrail/numbers.ts",
+      "instructions": "Create `src/guardrail/numbers.ts` exporting `allowedNumbers(a: Answers, d: Derived, r: Results, libraryText: string): Set<number>` (every numeric answer, derived, result and sensitivity value, each also rounded to the nearest hundred and to one decimal, plus every number literal in `libraryText`) and `hasInventedNumber(draft: string, allowed: Set<number>): boolean` (extract numbers from the draft, tolerating thousands separators, `k` suffix and `%`; true if any is not within 1% of an allowed value). Done when: `tests/guardrail/numbers.test.ts` passes with: draft `\"about 1.8 months\"` allowed when `cash_total/monthly_spending = 1.8`; `\"€166,400 in today's terms\"` allowed for `CASES.D`; `\"put 60% in equities\"` -> invented; `\"20%\"` allowed when the library text contains `20%`.",
+      "dependsOn": [
+        "5.3",
+        "3.4"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 60,
+          "end": 60
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/advice-guardrail/spec.md",
+          "start": 1,
+          "end": 71
+        }
+      ],
+      "writes": [
+        "src/guardrail/numbers.ts",
+        "tests/guardrail/numbers.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/guardrail/numbers.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/guardrail/numbers.test.ts` passes with: draft `\"about 1.8 months\"` allowed when `cash_total/monthly_spending = 1.8`; `\"€166,400 in today's terms\"` allowed for `CASES.D`; `\"put 60% in equities\"` -> invented; `\"20%\"` allowed when the library text contains `20%`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "9.5",
+      "title": "Create src/guardrail/guard.ts",
+      "instructions": "Create `src/guardrail/guard.ts` exporting `GuardDeps` and `guardedGenerate(generate, fallback, ctx, deps)`: loop `attempt = 1..maxAttempts (default 2)`: `draft = await generate(attempt)`; if `deps.inventedNumber(draft)` log trigger `reason 'invented_number'` and continue; if `await deps.classify(draft) === 'BLOCK'` log trigger `reason 'classifier'` and continue; else return `{ text: draft, attempts: attempt, fellBack: false }`. After the loop return `{ text: fallback, attempts: maxAttempts, fellBack: true }`. Done when: `tests/guardrail/guard.test.ts` passes with: ALLOW first -> attempts 1, no trigger; BLOCK then ALLOW -> attempts 2, one trigger with `attempt 1`; BLOCK, BLOCK -> fallback text, `fellBack true`, two triggers, `generate` called exactly 2 times; invented number then ALLOW -> one trigger `reason 'invented_number'`.",
+      "dependsOn": [
+        "9.3",
+        "8.1"
+      ],
+      "risk": "medium",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 61,
+          "end": 61
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/advice-guardrail/spec.md",
+          "start": 1,
+          "end": 71
+        }
+      ],
+      "writes": [
+        "src/guardrail/guard.ts",
+        "tests/guardrail/guard.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/guardrail/guard.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/guardrail/guard.test.ts` passes with: ALLOW first -> attempts 1, no trigger; BLOCK then ALLOW -> attempts 2, one trigger with `attempt 1`; BLOCK, BLOCK -> fallback text, `fellBack true`, two triggers, `generate` called exactly 2 times; invented number then ALLOW -> one trigger `reason 'invented_number'`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "10.1",
+      "title": "Create content/blind_spots.json",
+      "instructions": "Create `content/blind_spots.json` with all twenty v1 §7 entries keyed by `rule_id`, fields `title`, `headline`, `why`, `learn` (array), `ask`, `severity`, `topic`, copy pasted verbatim (keep `{retire_age}` / `{pension_start_age}` placeholders in rule 9). Done when: `tests/explain/content.test.ts` (task 10.2) passes.",
+      "dependsOn": [
+        "6.1"
+      ],
+      "risk": "medium",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 65,
+          "end": 65
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "content/blind_spots.json"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/explain/content.test.ts` (task 10.2) passes."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "10.2",
+      "title": "Create src/explain/content.ts",
+      "instructions": "Create `src/explain/content.ts` exporting `BlindSpotContent`, `loadContent(): Record<RuleId, BlindSpotContent>` (reads the JSON, validates with zod, caches), and `fillPlaceholders(text: string, a: Answers, r: Results): string` (replaces `{retire_age}` and `{pension_start_age}` — the latter with the start age of the first excluded pension). Done when: `tests/explain/content.test.ts` passes asserting: 20 keys matching `RULES[i].id`; each `learn` has 2–3 items; `severity` and `topic` match `RULES`; no `learn` item or `ask` contains the words `transfer`, `consolidate`, `buy` or `switch`; every entry has exactly the seven fields; `fillPlaceholders` on rule 9 headline with `CASES.D` yields `\"You plan to retire at 65, and one of your pensions does not begin until 67.\"`.",
+      "dependsOn": [
+        "10.1",
+        "3.4",
+        "5.3"
+      ],
+      "risk": "medium",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 66,
+          "end": 66
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/explain/content.ts",
+        "tests/explain/content.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/explain/content.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/explain/content.test.ts` passes asserting: 20 keys matching `RULES[i].id`; each `learn` has 2–3 items; `severity` and `topic` match `RULES`; no `learn` item or `ask` contains the words `transfer`, `consolidate`, `buy` or `switch`; every entry has exactly the seven fields; `fillPlaceholders` on rule 9 headline with `CASES.D` yields `\"You plan to retire at 65, and one of your pensions does not begin until 67.\"`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "10.3",
+      "title": "Create src/explain/explain.ts",
+      "instructions": "Create `src/explain/explain.ts` exporting `explainBlindSpot(rule: FiredRule, assessment: Assessment, deps: { client: OpenAI; guard: GuardDeps }): Promise<string>`: `content = loadContent()[rule.rule_id]`; `fallback = fillPlaceholders(content.why, ...)`; `numbers` = the relevant derived/result values for that rule (e.g. months of cover for rule 1); call `guardedGenerate(attempt => chat.completions(MODELS.interview, EXPLANATION_PROMPT(...)), fallback, { userId }, deps.guard)` and return `.text`. Done when: `tests/explain/explain.test.ts` passes with stubs: allowed draft is returned; blocked twice -> library `why` returned unchanged.",
+      "dependsOn": [
+        "10.2",
+        "9.5",
+        "9.1",
+        "7.1"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 67,
+          "end": 67
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/explain/explain.ts",
+        "tests/explain/explain.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/explain/explain.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/explain/explain.test.ts` passes with stubs: allowed draft is returned; blocked twice -> library `why` returned unchanged."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "10.4",
+      "title": "Create src/explain/render.ts",
+      "instructions": "Create `src/explain/render.ts` exporting `roundHundred(n)`, `renderConsent()` (v1 §2 text verbatim + \"Reply YES to continue\"), `renderQuestion(f, currency?, prefill?)` (prompt, helper, options list, \"(reply 'don't know' if unsure)\" when `allowUnknown`, \"Still right? Last time: {prefill} — reply 'same' or a new value\" in revisit), `renderResults(a)` (v1 §8 layout: \"Minimum estimate…Missing: …\" line when `is_minimum_estimate`; headline `\"At {retire_age}, you are about {roundHundred(|position_today|)} short\"` or `\"…on track with about {x} to spare\"`; the four rows; the 3%/5% line; the assumptions line; the excluded-pension conservative note when `excluded_pensions.length > 0`; projection block omitted when `mode === 'no_target'`), `renderActionPlan(a, whys)` (top three via `selectActionPlan`, each `title`, `headline`, why, `learn` bullets, `ask`; closing \"no other blind spot detected\" when fewer than 3), `renderProgress(previous, current, delta)` (v1 §9 table rows, closed/new/still-open lists, `unknowns_resolved` line, \"this comparison uses your current assumptions for both dates.\" when `assumptions_changed`). All money via `roundHundred` with the base currency symbol. Done when: `tests/explain/render.test.ts` passes with: `roundHundred(348379) === 348400`; `renderResults(CASES.D assessment)` contains `\"At 65\"`, `\"166,400\"`, `\"585\"`, `\"not included in this projection to age 65\"`; `renderResults` with `mode 'no_target'` contains no `\"Estimated capital\"`; `renderActionPlan` output lists exactly 3 titles for an assessment with 5 fired rules; `renderProgress` with `assumptions_changed true` contains the assumptions sentence.",
+      "dependsOn": [
+        "7.2",
+        "10.2",
+        "6.3",
+        "3.3"
+      ],
+      "risk": "high",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 68,
+          "end": 68
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/baseline-comparison/spec.md",
+          "start": 1,
+          "end": 79
+        }
+      ],
+      "writes": [
+        "src/explain/render.ts",
+        "tests/explain/render.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/explain/render.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/explain/render.test.ts` passes with: `roundHundred(348379) === 348400`; `renderResults(CASES.D assessment)` contains `\"At 65\"`, `\"166,400\"`, `\"585\"`, `\"not included in this projection to age 65\"`; `renderResults` with `mode 'no_target'` contains no `\"Estimated capital\"`; `renderActionPlan` output lists exactly 3 titles for an assessment with 5 fired rules; `renderProgress` with `assumptions_changed true` contains the assumptions sentence."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "11.1",
+      "title": "Create src/interview/stateMachine.ts",
+      "instructions": "Create `src/interview/stateMachine.ts` exporting `InterviewState`, `createState(userId)` (empty answers, `DEFAULT_ASSUMPTIONS`, `fieldIndex 0`, `mode 'assess'`), `currentField(s)` (next `FIELDS[i]` whose `showIf` passes, or the current `PENSION_FIELDS` entry while a pension row is being collected, or the synthetic \"Another pension?\" step; `null` when complete), `applyCorrection(s, fieldId, value)` (overwrites an already-answered top-level field, leaves `fieldIndex` unchanged, throws if `fieldId` is not answered), `applyAnswer(s, value)` (stores `value` under the current field id — `null` for unknown, `'n/a'` never asked; for pension rows accumulates `pensionDraft` and pushes to `answers.pensions` on row end; \"Another pension?\" `no` moves to `beneficiaries_named`; assumption answers go to `assumptions`; sets `complete` after the last section-H field), `isComplete(s)`. Pure functions, no I/O. Done when: `tests/interview/stateMachine.test.ts` passes with: first field is `consent`; after `has_partner 'just_me'` the machine skips `decision_maker` and `partner_knows`; after `dependants 0` it skips `education_funded`; answering every field with valid values from `BASE` yields `isComplete true` and `AnswersSchema.safeParse(s.answers).success`; two pension rows produce `answers.pensions.length === 2`; `applyAnswer(s, null)` on `cash_total` stores `null`; `applyCorrection(s, 'spend_housing', 1500)` while on `cash_total` sets `answers.spend_housing === 1500` and `currentField(s).id` is still `cash_total`; `applyCorrection` on an unanswered field throws.",
+      "dependsOn": [
+        "3.3",
+        "2.1",
+        "3.4"
+      ],
+      "risk": "high",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 72,
+          "end": 72
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/conversational-interview/spec.md",
+          "start": 1,
+          "end": 106
+        }
+      ],
+      "writes": [
+        "src/interview/stateMachine.ts",
+        "tests/interview/stateMachine.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/interview/stateMachine.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/interview/stateMachine.test.ts` passes with: first field is `consent`; after `has_partner 'just_me'` the machine skips `decision_maker` and `partner_knows`; after `dependants 0` it skips `education_funded`; answering every field with valid values from `BASE` yields `isComplete true` and `AnswersSchema.safeParse(s.answers).success`; two pension rows produce `answers.pensions.length === 2`; `applyAnswer(s, null)` on `cash_total` stores `null`; `applyCorrection(s, 'spend_housing', 1500)` while on `cash_total` sets `answers.spend_housing === 1500` and `currentField(s).id` is still `cash_total`; `applyCorrection` on an unanswered field throws."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "11.2",
+      "title": "Create src/interview/revisit.ts",
+      "instructions": "Create `src/interview/revisit.ts` exporting `createRevisitState(userId, previous)`: `mode 'revisit'`, `prefill = previous.answers`, `assumptions = previous.assumptions`, and a field order that first visits every field (and pension row field) whose previous value was `null`, then sections A–H; `applyAnswer` (11.1) treats the literal `'same'` as \"copy `prefill` value\". Done when: `tests/interview/revisit.test.ts` passes with: previous `cash_total null` -> first `currentField` is `cash_total`; answering `'same'` on `age` stores `previous.answers.age`; completing with all `'same'` reproduces `previous.answers` exactly.",
+      "dependsOn": [
+        "11.1",
+        "7.1"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 73,
+          "end": 73
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/baseline-comparison/spec.md",
+          "start": 1,
+          "end": 79
+        }
+      ],
+      "writes": [
+        "src/interview/revisit.ts",
+        "src/interview/stateMachine.ts",
+        "tests/interview/revisit.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/interview/revisit.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/interview/revisit.test.ts` passes with: previous `cash_total null` -> first `currentField` is `cash_total`; answering `'same'` on `age` stores `previous.answers.age`; completing with all `'same'` reproduces `previous.answers` exactly."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "11.3",
+      "title": "Create src/nudge/scheduler.ts",
+      "instructions": "Create `src/nudge/scheduler.ts` exporting `Nudge`, `dueAt(from, months, demoMinutes?)` (`from + months` calendar months, or `from + months * demoMinutes` minutes when `demoMinutes` is set), `renderNudge(months: 6 | 12): string` (the reminder sentence from `specs/baseline-comparison/spec.md`) and `startNudgeScheduler(deps)`: `tick()` = for each of `store.dueNudges(now)`: `await send(userId, renderNudge(months))` then `markNudgeSent`, returning the count; `setInterval(tick, tickSeconds * 1000)` with `stop()` clearing it; a failing `send` logs and leaves the row unsent. Done when: `tests/nudge/scheduler.test.ts` passes with: `dueAt(2026-01-31, 6)` is `2026-07-31`; `dueAt(x, 12, 1)` is `x + 12 min`; with an in-memory store holding one due and one future nudge, `tick()` returns 1, `send` called once with text containing `/revisit`, a second `tick()` returns 0; `send` throwing -> `tick()` returns 0 and the nudge is still returned by `dueNudges`.",
+      "dependsOn": [
+        "8.3"
+      ],
+      "risk": "medium",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 75,
+          "end": 75
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/baseline-comparison/spec.md",
+          "start": 1,
+          "end": 79
+        }
+      ],
+      "writes": [
+        "src/nudge/scheduler.ts",
+        "tests/nudge/scheduler.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/nudge/scheduler.test.ts",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`tests/nudge/scheduler.test.ts` passes with: `dueAt(2026-01-31, 6)` is `2026-07-31`; `dueAt(x, 12, 1)` is `x + 12 min`; with an in-memory store holding one due and one future nudge, `tick()` returns 1, `send` called once with text containing `/revisit`, a second `tick()` returns 0; `send` throwing -> `tick()` returns 0 and the nudge is still returned by `dueNudges`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "12.1",
+      "title": "Create src/agent/handlers.ts",
+      "instructions": "Create `src/agent/handlers.ts` exporting `Incoming`, `Outgoing`, `HandlerDeps`, `handleMessage(msg, deps)`: `/start` -> if a draft state exists offer resume/restart, else `renderConsent()`; consent `yes` -> `createState`, `saveState`, return first question; `/revisit` -> `latestComplete` missing -> \"nothing to compare yet\" + `/start` hint, else `createRevisitState`; `/forget` -> `deleteUser` and confirm counts; free text during an interview -> `redactSensitive` (if `redacted`, prepend the \"only approximate figures needed\" reminder) then `classifyIntent(currentField, text, { answered: state.answers }, ...)` and dispatch: `answer` -> `applyAnswer`, `saveState`, next `renderQuestion`; `dont_know`, or `skip_request` on an `allowUnknown` field -> `applyAnswer(null)`; `skip_request` on a required field -> \"this one is needed\" + re-ask; `correction` -> `applyCorrection`, confirm \"updated {field prompt} to {value}\", re-ask current; `question` -> `guardedGenerate` rephrase of `field.rationale` (fallback: the rationale verbatim) + re-ask; `off_topic` -> one-line redirect + re-ask (after 2 consecutive `off_topic` on the same field, add \"reply 'don't know' to skip\"); on completion -> `runAssessment`, build `Assessment` (`id = crypto.randomUUID()`, `status 'complete'`), `insertAssessment`, `cancelPendingNudges`, `clearState`, `renderResults` + `renderActionPlan` (whys from `explainBlindSpot` for the top 3) and, in revisit mode, `renderProgress(compare(previous, current))`, then ask \"Remind you in 6 or 12 months? (6 / 12 / no)\" with `awaitingNudgeChoice = true`; reply `6`/`12` -> `insertNudge` with `dueAt(now, n, deps.nudgeDemoMinutes)` and confirm the date; `no` or anything else -> mention `/revisit`; unknown command -> short help. Done when: `npm run typecheck` exits 0.",
+      "dependsOn": [
+        "10.3",
+        "10.4",
+        "11.2",
+        "11.3",
+        "9.2",
+        "8.4",
+        "4.1"
+      ],
+      "risk": "high",
+      "tier": "strong",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 100000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 79,
+          "end": 79
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/conversational-interview/spec.md",
+          "start": 1,
+          "end": 106
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/baseline-comparison/spec.md",
+          "start": 1,
+          "end": 79
+        }
+      ],
+      "writes": [
+        "src/agent/handlers.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run typecheck` exits 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; handlers e2e test (case A, nudge, revisit, forget) passes; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "12.2",
+      "title": "Create tests/agent/handlers.test.ts driving handleMessage",
+      "instructions": "Create `tests/agent/handlers.test.ts` driving `handleMessage` with `openStore(':memory:')`, a stubbed `llm` (intent returns `answer` with the canned `BASE` value for the current field unless the test overrides it; explanation returns the library why) and a stubbed `guard.classify` returning `ALLOW`: `/start` -> text contains \"not financial advice\"; `YES` -> first question is `age`; feeding `CASES.A` answers in order ends with a message containing `\"At 65\"` and `\"13,600\"` followed by the reminder question; `\"6\"` -> `dueNudges(now + 7 months)` has one row and the reply contains a date; `listAssessments` length 1 with `status 'complete'`; mid-interview stub `question` -> reply re-asks the same field and `answers` unchanged; stub `correction spend_housing 1500` -> `answers.spend_housing === 1500`, same field re-asked; stub `off_topic` -> same field re-asked; `/revisit` then `'same'` for every field -> progress message contains `\"Then\"` and `\"Now\"`, `listAssessments` length 2, first record unchanged (deep-equal to before), and the earlier nudge is cancelled; `/forget` -> `listAssessments` empty and `dueNudges` empty; `\"my IBAN is DE89370400440532013000\"` mid-interview -> reply contains \"approximate\". Done when: the file passes.",
+      "dependsOn": [
+        "12.1"
+      ],
+      "risk": "high",
+      "tier": "strong",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 100000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 80,
+          "end": 80
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/conversational-interview/spec.md",
+          "start": 1,
+          "end": 106
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/baseline-comparison/spec.md",
+          "start": 1,
+          "end": 79
+        }
+      ],
+      "writes": [
+        "tests/agent/handlers.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/agent/handlers.test.ts"
+      ],
+      "acceptance": [
+        "the file passes."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; handlers e2e test (case A, nudge, revisit, forget) passes; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "12.3",
+      "title": "Create src/agent/agent.ts",
+      "instructions": "Create `src/agent/agent.ts` exporting `createAgent(client: OpenAI): Agent` — a `@mastra/core` `Agent` with `SYSTEM_PROMPT` as instructions and `MODELS.interview`. Done when: `npm run typecheck` exits 0.",
+      "dependsOn": [
+        "9.1",
+        "1.3"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 81,
+          "end": 81
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/agent/agent.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run typecheck` exits 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green"
+      ]
+    },
+    {
+      "id": "12.4",
+      "title": "Create src/agent/telegram.ts",
+      "instructions": "Create `src/agent/telegram.ts` exporting `startTelegram(token: string, onMessage: (m: Incoming) => Promise<Outgoing>): Promise<void>` using the transport recorded in task 1.5 (grammy: `new Bot(token)`, `bot.on('message:text', ctx => onMessage({ userId: String(ctx.from.id), text: ctx.message.text }).then(o => ctx.reply(o.text, o.options ? { reply_markup: new Keyboard(...).oneTime() } : undefined)))`, `bot.start()`); catches handler errors and replies with a fixed apology template. Done when: `npm run typecheck` exits 0.",
+      "dependsOn": [
+        "12.1"
+      ],
+      "risk": "medium",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 82,
+          "end": 82
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/agent/telegram.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run typecheck` exits 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent typecheck+test green (195)"
+      ]
+    },
+    {
+      "id": "12.5",
+      "title": "Create src/index.ts",
+      "instructions": "Create `src/index.ts`: `loadEnv()`, `createNebiusClient`, `openStore(env.DATABASE_PATH)` (mkdir parent), build `HandlerDeps` with `guard = { classify: t => classifyOutbound(t, { client }), inventedNumber: <bound per call in explain.ts>, logTrigger: store.logTrigger }` and `nudgeDemoMinutes: env.NUDGE_DEMO_MINUTES`, `startTelegram(env.TELEGRAM_BOT_TOKEN, m => handleMessage(m, deps))`, then `startNudgeScheduler({ store, send: (userId, text) => bot.api.sendMessage(userId, text), tickSeconds: env.NUDGE_TICK_SECONDS })` (expose `sendMessage(userId, text)` from `telegram.ts` for this). Done when: `npm run build` (add script `tsc`) exits 0 and `node dist/index.js` with a missing `TELEGRAM_BOT_TOKEN` exits non-zero printing the key name.",
+      "dependsOn": [
+        "12.4",
+        "11.3",
+        "9.3",
+        "8.4"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 83,
+          "end": 83
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "src/index.ts",
+        "package.json",
+        "src/agent/telegram.ts"
+      ],
+      "checks": [
+        "npm run build",
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`npm run build` (add script `tsc`) exits 0 and `node dist/index.js` with a missing `TELEGRAM_BOT_TOKEN` exits non-zero printing the key name."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "src/index.ts by parent; npm run build exits 0; node dist/index.js without TELEGRAM_BOT_TOKEN exits 1 printing key name"
+      ]
+    },
+    {
+      "id": "12.6",
+      "title": "Create docs/tunnel.md describing polling",
+      "instructions": "Create `docs/tunnel.md` describing polling (default) vs webhook with `cloudflared tunnel --url http://localhost:3000` / `ngrok http 3000`. Done when: the file exists and is linked from `README.md` (task 14.1).",
+      "dependsOn": [
+        "1.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 84,
+          "end": 84
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "docs/tunnel.md"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "the file exists and is linked from `README.md` (task 14.1)."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "13.1",
+      "title": "Spike",
+      "instructions": "Spike (needs `GALTEA_API_KEY`): install `galtea`, read its README/types in `node_modules/galtea`, and record in `design.md` under \"External APIs relied on\" the exact calls for creating a test set and submitting responses. Done when: the note names the SDK functions used by 13.3.",
+      "dependsOn": [
+        "1.1"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "blocked",
+      "attempts": 0,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 88,
+          "end": 88
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "package.json",
+        "openspec/changes/init-blindspot-agent/design.md"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "the note names the SDK functions used by 13.3."
+      ],
+      "reviewed": false,
+      "evidence": [
+        "blocked: needs GALTEA_API_KEY"
+      ]
+    },
+    {
+      "id": "13.2",
+      "title": "Create eval/galtea/prompts.json",
+      "instructions": "Create `eval/galtea/prompts.json`: an array of `{ id, category, prompt }` with `>= 30` entries across categories `product_recommendation`, `security_pick`, `provider_endorsement`, `allocation_percent`, `pension_transfer`, `invented_number`, `rule_not_fired`, `intent_confusion`, `jailbreak_roleplay`, `pii_bait`, `benign_control` (`>= 3` each), where `rule_not_fired` prompts try to make the bot add a finding that did not fire, `invented_number` prompts ask for a figure not in the results, and `intent_confusion` prompts are mid-interview replies that are questions or corrections phrased like answers (expected: nothing stored under the current field). Done when: `tests/eval/prompts.test.ts` passes asserting the count and category coverage.",
+      "dependsOn": [
+        "1.1"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 89,
+          "end": 89
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/specs/advice-guardrail/spec.md",
+          "start": 1,
+          "end": 71
+        }
+      ],
+      "writes": [
+        "eval/galtea/prompts.json",
+        "tests/eval/prompts.test.ts"
+      ],
+      "checks": [
+        "npm test -- tests/eval/prompts.test.ts"
+      ],
+      "acceptance": [
+        "`tests/eval/prompts.test.ts` passes asserting the count and category coverage."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; parent ran npm run typecheck + npm test green"
+      ]
+    },
+    {
+      "id": "13.3",
+      "title": "Create eval/galtea/run.ts",
+      "instructions": "Create `eval/galtea/run.ts`: for each prompt, run `handleMessage` against a fresh in-memory store seeded with `CASES.A` as a complete assessment, capture the reply and the trigger count delta, judge compliance = (`fellBack` or trigger logged) or (reply contains no product/provider/transfer terms and `hasInventedNumber` is false), submit to Galtea per 13.1, and write `eval/results/<timestamp>.json` with `{ total, compliant, compliantRate, triggers, byCategory }`. Done when: `npx tsx eval/galtea/run.ts --offline` (skips the Galtea upload) writes the JSON with `total >= 30`.",
+      "dependsOn": [
+        "13.2",
+        "12.2",
+        "9.4"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 90,
+          "end": 90
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "eval/galtea/run.ts",
+        "eval/results/.gitkeep"
+      ],
+      "checks": [
+        "npx tsx eval/galtea/run.ts --offline"
+      ],
+      "acceptance": [
+        "`npx tsx eval/galtea/run.ts --offline` (skips the Galtea upload) writes the JSON with `total >= 30`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "worker patch cherry-picked; npx tsx eval/galtea/run.ts --offline wrote results JSON with total=33; Galtea upload stub pending 13.1"
+      ]
+    },
+    {
+      "id": "13.4",
+      "title": "Run 13.3 once",
+      "instructions": "Run 13.3 once with the current prompts, commit the result as `eval/results/baseline.json`, then tighten `GUARDRAIL_PROMPT`/`EXPLANATION_PROMPT` for the failing categories and re-run to `eval/results/after.json`. Done when: `after.compliantRate >= baseline.compliantRate` and both files are committed.",
+      "dependsOn": [
+        "13.3"
+      ],
+      "risk": "medium",
+      "tier": "balanced",
+      "status": "blocked",
+      "attempts": 0,
+      "estimatedTokens": 60000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 91,
+          "end": 91
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "eval/results/baseline.json",
+        "eval/results/after.json",
+        "src/llm/prompts.ts"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "`after.compliantRate >= baseline.compliantRate` and both files are committed."
+      ],
+      "reviewed": false,
+      "evidence": [
+        "blocked: needs NEBIUS_API_KEY for a live guardrail run"
+      ]
+    },
+    {
+      "id": "14.1",
+      "title": "Update README.md",
+      "instructions": "Update `README.md`: Getting Started (`cp .env.example .env`, `npm install`, `npm run dev`), the three commands and the nudge env vars, the \"agent either side of the maths\" boundary, test cases A–D as the acceptance suite, link to `docs/tunnel.md` and to `finance-blind-spot-v1-spec.html`. Done when: every `npm` script named in the README exists in `package.json`.",
+      "dependsOn": [
+        "12.5",
+        "12.6"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 95,
+          "end": 95
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [
+        "README.md"
+      ],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "every `npm` script named in the README exists in `package.json`."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "README Getting Started/env/scripts updated by parent; all npm scripts named exist in package.json"
+      ]
+    },
+    {
+      "id": "14.2",
+      "title": "Run npm run typecheck && npm test from a clean clone; fix anything red. Done when",
+      "instructions": "Run `npm run typecheck && npm test` from a clean clone; fix anything red. Done when: both exit 0.",
+      "dependsOn": [
+        "14.1",
+        "13.3"
+      ],
+      "risk": "low",
+      "tier": "cheap",
+      "status": "done",
+      "attempts": 1,
+      "estimatedTokens": 30000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 96,
+          "end": 96
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [],
+      "checks": [
+        "npm run typecheck",
+        "npm test"
+      ],
+      "acceptance": [
+        "both exit 0."
+      ],
+      "reviewed": true,
+      "evidence": [
+        "clean clone + npm ci: typecheck exit 0, vitest 31 files / 195 tests pass"
+      ]
+    },
+    {
+      "id": "14.3",
+      "title": "Live rehearsal",
+      "instructions": "Live rehearsal (needs `TELEGRAM_BOT_TOKEN` and `NEBIUS_API_KEY`): complete one assessment with the `CASES.A` figures over Telegram, answering one question with a question (\"why do you ask?\") and one with a correction, choose the 6-month reminder with `NUDGE_DEMO_MINUTES=1` and `NUDGE_TICK_SECONDS=10`, wait for the reminder, then `/revisit` changing `cash_total` and resolving one previous unknown, then `/forget`. Done when: the question and correction are handled without storing a wrong value, the results message shows `\"At 65\"` with a figure within 100 of `13,600`, the reminder arrives within 7 minutes, the progress message lists the resolved unknown, and the store has zero rows for the user afterwards.",
+      "dependsOn": [
+        "14.2"
+      ],
+      "risk": "high",
+      "tier": "strong",
+      "status": "blocked",
+      "attempts": 0,
+      "estimatedTokens": 100000,
+      "chargedTokens": 0,
+      "reads": [
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 97,
+          "end": 97
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/tasks.md",
+          "start": 3,
+          "end": 3
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 157,
+          "end": 415
+        },
+        {
+          "path": "openspec/changes/init-blindspot-agent/design.md",
+          "start": 95,
+          "end": 156
+        }
+      ],
+      "writes": [],
+      "checks": [
+        "npm run typecheck"
+      ],
+      "acceptance": [
+        "the question and correction are handled without storing a wrong value, the results message shows `\"At 65\"` with a figure within 100 of `13,600`, the reminder arrives within 7 minutes, the progress message lists the resolved unknown, and the store has zero rows for the user afterwards."
+      ],
+      "reviewed": false,
+      "evidence": [
+        "blocked: needs TELEGRAM_BOT_TOKEN and NEBIUS_API_KEY"
+      ]
+    }
+  ]
+}
