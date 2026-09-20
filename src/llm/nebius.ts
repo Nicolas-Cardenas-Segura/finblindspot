@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import type { Env } from '../config/env.js';
 import { createLogger, errorData } from '../log/logger.js';
+import { noopTelemetry, type Telemetry } from '../observability/galtea.js';
 
 export interface Models {
   interview: string;
@@ -17,6 +18,11 @@ export function modelsFromEnv(
 }
 
 const log = createLogger('llm');
+let telemetry: Telemetry = noopTelemetry;
+
+export function setTelemetry(next: Telemetry): void {
+  telemetry = next;
+}
 
 export function createNebiusClient(env: Pick<Env, 'NEBIUS_API_KEY' | 'NEBIUS_BASE_URL'>): OpenAI {
   log.debug('nebius client created', { baseURL: env.NEBIUS_BASE_URL });
@@ -31,25 +37,31 @@ export async function chatText(
   params: ChatParams,
   purpose: string,
 ): Promise<string> {
-  const started = Date.now();
-  log.debug(`${purpose}: request`, {
-    model: params.model,
-    temperature: params.temperature,
-    response_format: params.response_format,
-    messages: params.messages,
-  });
-  try {
-    const response = await client.chat.completions.create(params);
-    const content = response.choices[0]?.message?.content?.trim() ?? '';
-    log.debug(`${purpose}: response`, {
-      ms: Date.now() - started,
-      finish_reason: response.choices[0]?.finish_reason,
-      usage: response.usage,
-      content,
+  return telemetry.generation(purpose, String(params.model), params.messages, async () => {
+    const started = Date.now();
+    log.debug(`${purpose}: request`, {
+      model: params.model,
+      temperature: params.temperature,
+      response_format: params.response_format,
+      messages: params.messages,
     });
-    return content;
-  } catch (error) {
-    log.error(`${purpose}: request failed`, { ms: Date.now() - started, model: params.model, ...errorData(error) });
-    throw error;
-  }
+    try {
+      const response = await client.chat.completions.create(params);
+      const content = response.choices[0]?.message?.content?.trim() ?? '';
+      log.debug(`${purpose}: response`, {
+        ms: Date.now() - started,
+        finish_reason: response.choices[0]?.finish_reason,
+        usage: response.usage,
+        content,
+      });
+      return { text: content, value: content };
+    } catch (error) {
+      log.error(`${purpose}: request failed`, { ms: Date.now() - started, model: params.model, ...errorData(error) });
+      throw error;
+    }
+  });
+}
+
+export function getTelemetry(): Telemetry {
+  return telemetry;
 }

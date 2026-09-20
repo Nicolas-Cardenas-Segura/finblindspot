@@ -9,6 +9,8 @@ export interface Env {
   NEBIUS_INTERVIEW_MODEL: string;
   NEBIUS_GUARDRAIL_MODEL: string;
   GALTEA_API_KEY?: string;
+  GALTEA_VERSION_ID?: string;
+  GALTEA_OTEL_ENDPOINT: string;
   DATABASE_PATH: string;
   NUDGE_TICK_SECONDS: number;
   NUDGE_DEMO_MINUTES?: number;
@@ -28,6 +30,8 @@ const EnvSchema = z.object({
   NEBIUS_INTERVIEW_MODEL: z.string().min(1).default('deepseek-ai/DeepSeek-V4.1-Flash'),
   NEBIUS_GUARDRAIL_MODEL: z.string().min(1).default('nvidia/Nemotron-3_5-Lightning'),
   GALTEA_API_KEY: optionalString,
+  GALTEA_VERSION_ID: optionalString,
+  GALTEA_OTEL_ENDPOINT: z.string().url().default('https://otel.platform.prod-main.galtea.ai:4318/otel/traces'),
   DATABASE_PATH: z.string().min(1).default('./data/finblindspot.sqlite'),
   NUDGE_TICK_SECONDS: z.coerce.number().int().positive().default(3600),
   NUDGE_DEMO_MINUTES: z

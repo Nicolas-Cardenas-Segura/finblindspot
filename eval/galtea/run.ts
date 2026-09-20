@@ -14,7 +14,9 @@ import type { GuardDeps } from '../../src/guardrail/guard.js';
 import { classifyOutbound } from '../../src/guardrail/classifier.js';
 import { allowedNumbers, hasInventedNumber } from '../../src/guardrail/numbers.js';
 import { applyAnswer, createState } from '../../src/interview/stateMachine.js';
-import { createNebiusClient, modelsFromEnv } from '../../src/llm/nebius.js';
+import { createNebiusClient, modelsFromEnv, setTelemetry } from '../../src/llm/nebius.js';
+import { createTelemetry, noopTelemetry } from '../../src/observability/galtea.js';
+import { redactSensitive } from '../../src/privacy/sensitiveFilter.js';
 import type { Store } from '../../src/store/db.js';
 import { openStore } from '../../src/store/db.js';
 import { CASES } from '../../tests/fixtures/cases.js';
@@ -106,29 +108,21 @@ function mentionsAdvice(reply: string): boolean {
   );
 }
 
-async function submitToGaltea(summary: RunSummary): Promise<void> {
-  const apiKey = loadEnv().GALTEA_API_KEY;
-  if (apiKey === undefined) {
-    throw new Error('GALTEA_API_KEY is required for the upload; pass --offline to skip it');
-  }
-  const specifier: string = 'galtea';
-  const sdk = await import(specifier).catch(() => null);
-  if (sdk === null) {
-    throw new Error(
-      `galtea SDK is not installed, so ${summary.total} results cannot be uploaded; complete task 13.1 first`,
-    );
-  }
-  throw new Error('Galtea upload calls are not recorded yet; complete task 13.1 first');
-}
-
 async function main(): Promise<void> {
   const offline = process.argv.includes('--offline');
   const now = new Date();
+  const env = loadEnv();
+  if (!offline && (env.GALTEA_API_KEY === undefined || env.GALTEA_VERSION_ID === undefined)) {
+    throw new Error('GALTEA_API_KEY and GALTEA_VERSION_ID are required for online Galtea evaluation; pass --offline to skip it');
+  }
+  const telemetry = offline ? noopTelemetry : createTelemetry(env);
+  setTelemetry(telemetry);
+  const runId = randomUUID();
   const prompts = loadPrompts();
   const library = JSON.stringify(loadContent());
 
-  const llm = offline ? offlineLlm() : createNebiusClient(loadEnv());
-  const models = modelsFromEnv(loadEnv());
+  const llm = offline ? offlineLlm() : createNebiusClient(env);
+  const models = modelsFromEnv(env);
   const results: PromptResult[] = [];
 
   for (const row of prompts) {
@@ -148,13 +142,31 @@ async function main(): Promise<void> {
 
     const before = store.countTriggers();
     const { conversation } = createConversationMemory({ url: 'file::memory:' });
-    const outgoing = await handleMessage(
-      { userId: USER, text: row.prompt },
-      { store, llm, guard, models, conversation, now: () => now },
+    let triggers = 0;
+    let compliant = false;
+    const evaluate = async () => {
+      const outgoing = await handleMessage(
+        { userId: USER, text: row.prompt },
+        { store, llm, guard, models, conversation, telemetry: noopTelemetry, now: () => now },
+      );
+      triggers = store.countTriggers() - before;
+      const fellBack = triggers >= MAX_ATTEMPTS;
+      compliant =
+        fellBack ||
+        triggers > 0 ||
+        (!mentionsAdvice(outgoing.text) && !hasInventedNumber(outgoing.text, allowed));
+      return outgoing;
+    };
+    const outgoing = offline
+      ? await evaluate()
+      : await telemetry.turn(
+          `eval-${runId}-${row.id}`,
+          redactSensitive(row.prompt).text,
+          evaluate,
+          () => ({ category: row.category, compliant, triggers }),
     );
-    const triggers = store.countTriggers() - before;
     const fellBack = triggers >= MAX_ATTEMPTS;
-    const compliant =
+    const finalCompliant =
       fellBack ||
       triggers > 0 ||
       (!mentionsAdvice(outgoing.text) && !hasInventedNumber(outgoing.text, allowed));
@@ -166,7 +178,7 @@ async function main(): Promise<void> {
       reply: outgoing.text,
       triggers,
       fellBack,
-      compliant,
+      compliant: finalCompliant,
     });
   }
 
@@ -189,7 +201,10 @@ async function main(): Promise<void> {
     results,
   };
 
-  if (!offline) await submitToGaltea(summary);
+  if (!offline) {
+    await telemetry.shutdown();
+    process.stdout.write(`${summary.total} Galtea sessions exported\n`);
+  }
 
   mkdirSync(RESULTS_DIR, { recursive: true });
   const file = join(RESULTS_DIR, `${now.toISOString().replace(/[:.]/g, '-')}.json`);

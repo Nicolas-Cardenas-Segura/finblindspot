@@ -45,6 +45,7 @@ import type { Answers, Currency, FieldId } from '../questionnaire/schema.js';
 import { selectActionPlan } from '../rules/evaluate.js';
 import type { RuleId } from '../rules/rules.js';
 import type { Store } from '../store/db.js';
+import { type Telemetry } from '../observability/galtea.js';
 
 export interface Incoming {
   userId: string;
@@ -70,6 +71,7 @@ export interface HandlerDeps {
   models: Models;
   guard: GuardDeps;
   conversation: ConversationMemory;
+  telemetry: Telemetry;
   agent?: Agent;
   now?: () => Date;
   nudgeDemoMinutes?: number;
@@ -560,7 +562,7 @@ async function handleCommand(command: string, msg: Incoming, deps: HandlerDeps):
   return { text: HELP };
 }
 
-export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
+async function handleMessageInner(msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
   const trimmed = msg.text.trim();
   if (!trimmed.startsWith('/')) {
     await deps.conversation.remember(msg.userId, { role: 'user', text: redactSensitive(trimmed).text });
@@ -570,6 +572,10 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
     await deps.conversation.remember(msg.userId, { role: 'assistant', text: out.text });
   }
   return out;
+}
+
+export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
+  return deps.telemetry.turn(msg.userId, redactSensitive(msg.text).text, () => handleMessageInner(msg, deps));
 }
 
 function skip(stored: InterviewState, field: FieldDef, msg: Incoming, deps: HandlerDeps, redacted: boolean): Promise<Outgoing> {
