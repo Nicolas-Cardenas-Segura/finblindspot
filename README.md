@@ -89,7 +89,7 @@ Out of scope for the MVP: custom web/mobile UI, banking API or credential integr
 ## 🛠️ Stack & Technology
 
 - **Agent & Channels**: [Mastra](https://mastra.ai) agent; Telegram via `grammy` long polling (see [`docs/tunnel.md`](docs/tunnel.md) — no public URL needed)
-- **Model Inference**: [Nebius Token Factory](https://tokenfactory.nebius.com) (`openai/gpt-oss-120b` for answer extraction and explanation, `nvidia/Nemotron-3_5-Lightning` for the outbound guardrail). DeepSeek-V4.1-Flash also works but is ~2–3× slower because of hidden reasoning
+- **Model Inference**: [Nebius Token Factory](https://tokenfactory.nebius.com) (`deepseek-ai/DeepSeek-V4.1-Flash` for answer extraction and explanation, `nvidia/Nemotron-3_5-Lightning` for the outbound guardrail); `openai/gpt-oss-120b` is a faster alternative via `NEBIUS_INTERVIEW_MODEL`
 - **Evaluation & Adversarial Testing**: [Galtea](https://galtea.ai) (advice-boundary, invented-number and rule-not-fired probes)
 - **Language & Runtime**: TypeScript / Node.js, `zod`
 - **Storage**: Mastra `Agent` plus `@mastra/memory` backed by LibSQL owns conversation history in one per-user thread (last 16 turns); local SQLite (`better-sqlite3`) stores immutable assessments, deterministic interview state, nudges, and compliance triggers
@@ -141,7 +141,7 @@ Environment variables (`.env.example`):
 | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather (required) |
 | `NEBIUS_API_KEY`, `NEBIUS_BASE_URL` | Nebius Token Factory, OpenAI-compatible (required) |
-| `NEBIUS_INTERVIEW_MODEL` | Interview model (default `openai/gpt-oss-120b`) |
+| `NEBIUS_INTERVIEW_MODEL` | Interview model (default `deepseek-ai/DeepSeek-V4.1-Flash`) |
 | `NEBIUS_GUARDRAIL_MODEL` | Outbound guardrail model (default `nvidia/Nemotron-3_5-Lightning`) |
 | `DATABASE_PATH` | SQLite file; parent directory is created on boot |
 | `NUDGE_TICK_SECONDS` | How often the in-process scheduler checks for due reminders |

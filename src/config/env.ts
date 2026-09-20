@@ -25,7 +25,7 @@ const EnvSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1),
   NEBIUS_API_KEY: z.string().min(1),
   NEBIUS_BASE_URL: z.string().url().default('https://api.tokenfactory.nebius.com/v1/'),
-  NEBIUS_INTERVIEW_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
+  NEBIUS_INTERVIEW_MODEL: z.string().min(1).default('deepseek-ai/DeepSeek-V4.1-Flash'),
   NEBIUS_GUARDRAIL_MODEL: z.string().min(1).default('nvidia/Nemotron-3_5-Lightning'),
   GALTEA_API_KEY: optionalString,
   DATABASE_PATH: z.string().min(1).default('./data/finblindspot.sqlite'),

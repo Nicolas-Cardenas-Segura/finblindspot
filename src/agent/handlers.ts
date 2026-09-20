@@ -275,7 +275,6 @@ async function askConversational(
             ],
             temperature: 0.4,
             max_tokens: 600,
-            reasoning_effort: 'low',
           },
           `turn ${field.id}/${event.kind}`,
         ).then((text) => {
