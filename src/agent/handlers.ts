@@ -71,7 +71,7 @@ const SENSITIVE_REMINDER =
   'Please do not send account, card, passport or tax numbers. Only approximate figures are needed.';
 
 const HELP =
-  'I can run /start for a new assessment, /revisit to update the last one, and /forget to delete everything I hold about you. During an assessment, /skip leaves a question out and /stop ends it with a report on what you have told me so far.';
+  'I can run /start for a new assessment, /revisit to update the last one, /report to resend your latest PDF report, and /forget to delete everything I hold about you. During an assessment, /skip leaves a question out and /stop ends it with a report on what you have told me so far.';
 
 const NUDGE_QUESTION = 'Would you like me to remind you to re-assess in 6 or 12 months? Reply with the number of months, or no.';
 
@@ -184,9 +184,19 @@ function isSectionStart(field: FieldDef, event: TurnEvent): boolean {
   return field.section !== from;
 }
 
+const PREVIOUS_REPORT_MAX_CHARS = 2500;
+
 function previousReport(userId: string, deps: HandlerDeps): string | undefined {
   const latest = deps.store.listAssessments(userId).filter((a) => a.status !== 'draft').at(-1);
-  return latest === undefined ? undefined : summarizeAssessment(latest);
+  if (latest === undefined) return undefined;
+  const summary = summarizeAssessment(latest);
+  const stored = deps.store.latestReport(userId);
+  if (stored === undefined || stored.assessment_id !== latest.id) return summary;
+  const text =
+    stored.text.length > PREVIOUS_REPORT_MAX_CHARS
+      ? `${stored.text.slice(0, PREVIOUS_REPORT_MAX_CHARS)}\u2026`
+      : stored.text;
+  return `${summary}\n- What the report said:\n${text}`;
 }
 
 async function askConversational(
@@ -400,16 +410,27 @@ async function complete(
   parts.push(NUDGE_QUESTION);
 
   const data = await buildReport({ assessment, whys, previous, delta });
-  log.debug('report built', { assessmentId: assessment.id, bytes: data.length });
+  const filename = reportFilename(assessment);
+  const reportText = parts.slice(0, -2).join('\n\n');
+  deps.store.insertReport({
+    id: crypto.randomUUID(),
+    user_id: msg.userId,
+    assessment_id: assessment.id,
+    created_at: assessment.created_at,
+    filename,
+    text: reportText,
+    pdf: data,
+  });
+  log.debug('report built and stored', { assessmentId: assessment.id, filename, bytes: data.length });
 
   return {
     text: parts.join('\n\n'),
-    document: {
-      filename: reportFilename(assessment),
-      data,
-      caption: assessment.status === 'partial' ? 'Your partial financial blind spot report' : 'Your financial blind spot report',
-    },
+    document: { filename, data, caption: reportCaption(assessment) },
   };
+}
+
+function reportCaption(a: Assessment): string {
+  return a.status === 'partial' ? 'Your partial financial blind spot report' : 'Your financial blind spot report';
 }
 
 function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outgoing {
@@ -478,12 +499,29 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
     );
   }
 
+  if (command === '/report') {
+    const stored = deps.store.latestReport(msg.userId);
+    if (stored === undefined) {
+      return { text: 'There is no report yet. Send /start to run your first assessment.' };
+    }
+    const latest = deps.store.listAssessments(msg.userId).find((a) => a.id === stored.assessment_id);
+    log.debug('/report resend', { assessmentId: stored.assessment_id, filename: stored.filename });
+    return {
+      text: `Here is your report from ${formatDate(new Date(stored.created_at))}.`,
+      document: {
+        filename: stored.filename,
+        data: stored.pdf,
+        caption: latest === undefined ? 'Your financial blind spot report' : reportCaption(latest),
+      },
+    };
+  }
+
   if (command === '/forget') {
     clearHistory(msg.userId);
     const counts = deps.store.deleteUser(msg.userId);
     log.info('/forget executed', { userId: msg.userId, ...counts });
     return {
-      text: `Deleted ${counts.assessments} assessments, ${counts.states} drafts, ${counts.nudges} reminders and ${counts.triggers} logged messages. Nothing about you is left.`,
+      text: `Deleted ${counts.assessments} assessments, ${counts.states} drafts, ${counts.nudges} reminders, ${counts.reports} reports and ${counts.triggers} logged messages. Nothing about you is left.`,
     };
   }
 

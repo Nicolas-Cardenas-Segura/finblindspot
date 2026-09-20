@@ -19,6 +19,8 @@ import {
   insertNudge,
   markNudgeSent,
 } from './nudges.js';
+import type { StoredReport } from './reports.js';
+import { deleteUserReports, insertReport, latestReport, listReports } from './reports.js';
 import { countTriggers, deleteUserTriggers, logTrigger } from './triggers.js';
 
 export interface ComplianceTrigger {
@@ -43,7 +45,10 @@ export interface Store {
   cancelPendingNudges(userId: string, at: string): number;
   logTrigger(t: ComplianceTrigger): void;
   countTriggers(since?: string): number;
-  deleteUser(userId: string): { assessments: number; states: number; nudges: number; triggers: number };
+  insertReport(r: StoredReport): void;
+  latestReport(userId: string): StoredReport | undefined;
+  listReports(userId: string): StoredReport[];
+  deleteUser(userId: string): { assessments: number; states: number; nudges: number; triggers: number; reports: number };
 }
 
 const SCHEMA = `
@@ -73,6 +78,16 @@ CREATE TABLE IF NOT EXISTS nudges (
   sent_at TEXT,
   cancelled INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  assessment_id TEXT,
+  created_at TEXT,
+  filename TEXT,
+  text TEXT,
+  pdf BLOB
+);
+CREATE INDEX IF NOT EXISTS reports_user_created ON reports (user_id, created_at);
 CREATE TABLE IF NOT EXISTS compliance_triggers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT,
@@ -112,11 +127,15 @@ export function openStore(path: string | ':memory:'): Store {
     cancelPendingNudges: (userId, at) => cancelPendingNudges(db, userId, at),
     logTrigger: (t) => logTrigger(db, t),
     countTriggers: (since) => countTriggers(db, since),
+    insertReport: (r) => insertReport(db, r),
+    latestReport: (userId) => latestReport(db, userId),
+    listReports: (userId) => listReports(db, userId),
     deleteUser: (userId) => {
       const { assessments, states } = deleteUserAssessments(db, userId);
       const nudges = deleteUserNudges(db, userId);
       const triggers = deleteUserTriggers(db, userId);
-      return { assessments, states, nudges, triggers };
+      const reports = deleteUserReports(db, userId);
+      return { assessments, states, nudges, triggers, reports };
     },
   };
 }

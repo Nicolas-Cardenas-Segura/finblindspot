@@ -47,7 +47,7 @@ describe('buildReport', () => {
     const data = await buildReport({ assessment: a, whys: NO_WHYS });
     expect(isPdf(data)).toBe(true);
     expect(data.length).toBeGreaterThan(5000);
-    expect(reportFilename(a)).toBe('finblindspot-report-2026-01-15.pdf');
+    expect(reportFilename(a)).toBe('myfingap-report-2026-01-15.pdf');
   });
 
   it('renders a partial assessment without a projection', async () => {

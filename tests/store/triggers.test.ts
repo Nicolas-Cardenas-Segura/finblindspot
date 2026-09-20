@@ -38,7 +38,7 @@ describe('trigger store', () => {
       cancelled: false,
     });
 
-    expect(store.deleteUser('u1')).toEqual({ assessments: 0, states: 0, nudges: 1, triggers: 1 });
+    expect(store.deleteUser('u1')).toEqual({ assessments: 0, states: 0, nudges: 1, triggers: 1, reports: 0 });
     expect(store.countTriggers()).toBe(0);
     expect(store.dueNudges('2030-01-01T00:00:00.000Z')).toHaveLength(0);
   });

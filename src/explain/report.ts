@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import PDFDocument from 'pdfkit';
 import type { Assessment } from '../assess/assess.js';
 import type { Delta } from '../assess/compare.js';
@@ -20,11 +21,21 @@ import {
   percent,
 } from './render.js';
 
-const INK = '#1f2933';
-const MUTED = '#6b7280';
-const ACCENT = '#0f766e';
-const RULE_LINE = '#d1d5db';
-const SEVERITY_COLOUR: Record<Severity, string> = { high: '#b91c1c', medium: '#b45309', low: '#1d4ed8' };
+// myfinGap palette: navy background, teal bars, purple glow, off-white type.
+const NAVY = '#0e121d';
+const INK = '#1a2233';
+const MUTED = '#6b7385';
+const TEAL = '#66e1cf';
+const TEAL_DEEP = '#159e91';
+const PURPLE = '#8c51ad';
+const PURPLE_SOFT = '#b58fd0';
+const OFF_WHITE = '#eef1f5';
+const RULE_LINE = '#d6dbe3';
+const ACCENT = TEAL_DEEP;
+const SEVERITY_COLOUR: Record<Severity, string> = { high: PURPLE, medium: TEAL_DEEP, low: MUTED };
+const LOGO_PATH = fileURLToPath(new URL('../../assets/myfingap-logo.jpg', import.meta.url));
+const BRAND = 'myfinGap';
+const TAGLINE = 'See what you\u2019re missing';
 
 const DISCLAIMER =
   'This report is educational only. It is not financial, tax, legal or investment advice, does not recommend any product, provider or transaction, and is based solely on the approximate figures you gave. Figures are rounded and depend on the assumptions listed. Speak to a regulated professional before acting.';
@@ -37,15 +48,54 @@ export interface ReportInput {
 }
 
 export function reportFilename(a: Assessment): string {
-  return `finblindspot-report-${a.created_at.slice(0, 10)}.pdf`;
+  return `myfingap-report-${a.created_at.slice(0, 10)}.pdf`;
 }
 
 type Doc = InstanceType<typeof PDFDocument>;
 
+function coverBand(doc: Doc, date: string, kind: string, currency: string): void {
+  const { left, right, top } = doc.page.margins;
+  const bandHeight = 150;
+  doc.save();
+  doc.rect(0, 0, doc.page.width, bandHeight).clip();
+  doc.rect(0, 0, doc.page.width, bandHeight).fill(NAVY);
+  doc.circle(doc.page.width - 40, bandHeight + 10, 120).fillOpacity(0.18).fill(TEAL);
+  doc.circle(-30, -20, 110).fillOpacity(0.22).fill(PURPLE);
+  doc.fillOpacity(1);
+  const logoWidth = 150;
+  doc.image(LOGO_PATH, doc.page.width - right - logoWidth, 22, { width: logoWidth });
+  doc.font('Helvetica').fontSize(9).fillColor(TEAL).text(TAGLINE.toUpperCase(), left, 40, { characterSpacing: 2 });
+  doc.font('Helvetica-Bold').fontSize(24).fillColor(OFF_WHITE).text('Your financial', left, 58);
+  doc.text('blind spot report', left, 86);
+  doc.font('Helvetica').fontSize(9.5).fillColor(PURPLE_SOFT).text(`${date}  \u00b7  ${kind}  \u00b7  amounts in ${currency}`, left, 122);
+  doc.restore();
+  doc.fillColor(INK);
+  doc.x = left;
+  doc.y = bandHeight + Math.round(top * 0.5);
+}
+
+function footers(doc: Doc): void {
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i += 1) {
+    doc.switchToPage(i);
+    const y = doc.page.height - 34;
+    const savedBottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    doc.save();
+    doc.rect(doc.page.margins.left, y + 3, 18, 2).fill(TEAL);
+    doc.font('Helvetica').fontSize(8).fillColor(MUTED);
+    doc.text(`${BRAND}  \u00b7  educational only, not advice`, doc.page.margins.left + 24, y, { lineBreak: false });
+    doc.text(`${i + 1} / ${range.count}`, doc.page.width - doc.page.margins.right - 40, y, { width: 40, align: 'right', lineBreak: false });
+    doc.restore();
+    doc.page.margins.bottom = savedBottom;
+  }
+}
+
 function h1(doc: Doc, text: string): void {
   doc.moveDown(0.6).font('Helvetica-Bold').fontSize(15).fillColor(ACCENT).text(text);
   const y = doc.y + 2;
-  doc.moveTo(doc.page.margins.left, y).lineTo(doc.page.width - doc.page.margins.right, y).strokeColor(RULE_LINE).lineWidth(0.5).stroke();
+  doc.moveTo(doc.page.margins.left, y).lineTo(doc.page.margins.left + 28, y).strokeColor(TEAL).lineWidth(2).stroke();
+  doc.moveTo(doc.page.margins.left + 28, y).lineTo(doc.page.width - doc.page.margins.right, y).strokeColor(RULE_LINE).lineWidth(0.5).stroke();
   doc.moveDown(0.4).fillColor(INK);
 }
 
@@ -286,7 +336,8 @@ export function buildReport(input: ReportInput): Promise<Buffer> {
     const doc = new PDFDocument({
       size: 'A4',
       margins: { top: 56, bottom: 56, left: 56, right: 56 },
-      info: { Title: 'Financial blind spot report', Author: ASSISTANT_NAME, Creator: 'finblindspot' },
+      bufferPages: true,
+      info: { Title: `${BRAND} financial blind spot report`, Author: `${ASSISTANT_NAME} at ${BRAND}`, Creator: BRAND },
     });
     const chunks: Buffer[] = [];
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -294,8 +345,7 @@ export function buildReport(input: ReportInput): Promise<Buffer> {
     doc.on('error', reject);
 
     const date = new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-    doc.font('Helvetica-Bold').fontSize(22).fillColor(INK).text('Your financial blind spot report');
-    muted(doc, `${date}  ·  ${a.status === 'partial' ? 'Partial assessment' : 'Full assessment'}  ·  amounts in ${a.base_currency}`);
+    coverBand(doc, date, a.status === 'partial' ? 'Partial assessment' : 'Full assessment', a.base_currency);
     doc.moveDown(0.5);
     body(
       doc,
@@ -312,6 +362,7 @@ export function buildReport(input: ReportInput): Promise<Buffer> {
 
     doc.moveDown(1);
     muted(doc, DISCLAIMER);
+    footers(doc);
     doc.end();
   });
 }

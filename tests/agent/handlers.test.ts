@@ -151,8 +151,16 @@ describe('handleMessage', () => {
     expect(finished.text).toContain('At 65');
     expect(finished.text).toContain('13,600');
     expect(finished.text).toContain('remind you to re-assess in 6 or 12 months');
-    expect(finished.document?.filename).toMatch(/^finblindspot-report-.*\.pdf$/);
+    expect(finished.document?.filename).toMatch(/^myfingap-report-.*\.pdf$/);
     expect(finished.document?.data.subarray(0, 5).toString()).toBe('%PDF-');
+    const storedReport = store.latestReport(USER);
+    expect(storedReport?.pdf.equals(finished.document!.data)).toBe(true);
+    expect(storedReport?.text).toContain('At 65');
+    expect(storedReport?.text).not.toContain('remind you to re-assess');
+
+    const resent = await send('/report');
+    expect(resent.document?.filename).toBe(finished.document?.filename);
+    expect(resent.document?.data.equals(finished.document!.data)).toBe(true);
 
     const nudged = await send('6');
     expect(nudged.text).toContain('July');
@@ -176,8 +184,10 @@ describe('handleMessage', () => {
     expect(store.dueNudges('2027-12-31T00:00:00.000Z')).toHaveLength(0);
 
     const forgotten = await send('/forget');
-    expect(forgotten.text).toContain('Deleted');
+    expect(forgotten.text).toContain('2 reports');
     expect(store.listAssessments(USER)).toHaveLength(0);
+    expect(store.latestReport(USER)).toBeUndefined();
+    expect((await send('/report')).document).toBeUndefined();
     expect(store.dueNudges('2027-12-31T00:00:00.000Z')).toHaveLength(0);
   });
 
