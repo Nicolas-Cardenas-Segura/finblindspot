@@ -22,7 +22,8 @@ import {
 } from '../interview/stateMachine.js';
 import { createRevisitState } from '../interview/revisit.js';
 import { MODELS, chatText } from '../llm/nebius.js';
-import { SYSTEM_PROMPT } from '../llm/prompts.js';
+import type { ConversationTurn, TurnEvent } from '../llm/prompts.js';
+import { SYSTEM_PROMPT, TURN_PROMPT } from '../llm/prompts.js';
 import { createLogger, errorData } from '../log/logger.js';
 import { dueAt } from '../nudge/scheduler.js';
 import { redactSensitive } from '../privacy/sensitiveFilter.js';
@@ -37,6 +38,7 @@ import type { Store } from '../store/db.js';
 export interface Incoming {
   userId: string;
   text: string;
+  firstName?: string;
 }
 
 export interface Outgoing {
@@ -62,7 +64,21 @@ const NUDGE_QUESTION = 'Remind you in 6 or 12 months? (6 / 12 / no)';
 
 const NUDGE_OPTIONS = ['6', '12', 'no'];
 
+const HISTORY_TURNS = 16;
+
 const log = createLogger('handler');
+
+const histories = new Map<string, ConversationTurn[]>();
+
+function remember(userId: string, turn: ConversationTurn): void {
+  const h = histories.get(userId) ?? [];
+  h.push(turn);
+  histories.set(userId, h.slice(-HISTORY_TURNS));
+}
+
+export function clearHistory(userId: string): void {
+  histories.delete(userId);
+}
 
 function stateSummary(s: InterviewState | undefined): Record<string, unknown> | undefined {
   if (s === undefined) return undefined;
@@ -107,6 +123,82 @@ function askCurrent(s: InterviewState, prefix?: string): Outgoing {
   return { text: prefix === undefined ? question : `${prefix}\n\n${question}`, options: optionsFor(f) };
 }
 
+function staticTurn(s: InterviewState, event: TurnEvent, reminder?: string): Outgoing {
+  const prefix = ((): string | undefined => {
+    switch (event.kind) {
+      case 'correction_applied':
+        return `Updated "${promptFor(event.fieldId)}" to ${event.shown}.`;
+      case 'question_answered':
+        return event.explanation;
+      case 'skip_refused':
+        return 'This one is needed to work out your position.';
+      case 'off_topic':
+        return event.retries >= 2
+          ? "Let us stay with the assessment. You can reply 'don't know' to skip this one."
+          : 'Let us stay with the assessment.';
+      default:
+        return undefined;
+    }
+  })();
+  return askCurrent(s, [reminder, prefix].filter(Boolean).join('\n\n') || undefined);
+}
+
+async function askConversational(
+  s: InterviewState,
+  event: TurnEvent,
+  msg: Incoming,
+  deps: HandlerDeps,
+  redacted: boolean,
+): Promise<Outgoing> {
+  const fallback = staticTurn(s, event, redacted ? SENSITIVE_REMINDER : undefined);
+  const field = currentField(s);
+  if (field === null || s.mode !== 'assess') return fallback;
+
+  const prompt = TURN_PROMPT({
+    field,
+    currency: s.answers.base_currency as Currency | undefined,
+    event,
+    history: histories.get(msg.userId) ?? [],
+    firstName: msg.firstName,
+    redacted,
+    today: formatDate((deps.now ?? (() => new Date()))()),
+  });
+
+  try {
+    const generated = await guardedGenerate(
+      () =>
+        chatText(
+          deps.llm,
+          {
+            model: MODELS.interview,
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: prompt },
+            ],
+            temperature: 0.4,
+            max_tokens: 200,
+          },
+          `turn ${field.id}/${event.kind}`,
+        ),
+      fallback.text,
+      { userId: msg.userId },
+      deps.guard,
+    );
+    log.debug('turn phrased', {
+      field: field.id,
+      event: event.kind,
+      attempts: generated.attempts,
+      fellBack: generated.fellBack,
+    });
+    const text = generated.text.trim();
+    if (generated.fellBack || text === '') return fallback;
+    return { text, options: fallback.options };
+  } catch (error) {
+    log.warn('turn phrasing failed → static wording', { field: field.id, ...errorData(error) });
+    return fallback;
+  }
+}
+
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
@@ -149,6 +241,21 @@ async function rephraseRationale(
   );
   log.debug('rationale generated', { field: field.id, attempts: generated.attempts, fellBack: generated.fellBack });
   return generated.text.trim() === '' ? field.rationale : generated.text;
+}
+
+function advance(
+  stored: InterviewState,
+  next: InterviewState,
+  event: TurnEvent,
+  msg: Incoming,
+  deps: HandlerDeps,
+  redacted: boolean,
+): Promise<Outgoing> {
+  if (isComplete(next)) return complete(next, msg, deps);
+  if (stored.mode === 'revisit') {
+    return Promise.resolve(staticTurn(next, event, redacted ? SENSITIVE_REMINDER : undefined));
+  }
+  return askConversational(next, event, msg, deps, redacted);
 }
 
 async function complete(
@@ -260,6 +367,7 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
   log.debug('command', { userId: msg.userId, command });
   if (command === '/start') {
     const state = deps.store.loadState(msg.userId);
+    clearHistory(msg.userId);
     if (state !== undefined && !state.complete) {
       log.debug('/start with draft in progress → resume/restart prompt', { state: stateSummary(state) });
       return {
@@ -288,6 +396,7 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
   }
 
   if (command === '/forget') {
+    clearHistory(msg.userId);
     const counts = deps.store.deleteUser(msg.userId);
     log.info('/forget executed', { userId: msg.userId, ...counts });
     return {
@@ -300,7 +409,15 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
 
 export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
   const trimmed = msg.text.trim();
+  if (!trimmed.startsWith('/')) {
+    remember(msg.userId, { role: 'user', text: redactSensitive(trimmed).text });
+  }
+  const out = await route(msg, trimmed, deps);
+  remember(msg.userId, { role: 'assistant', text: out.text });
+  return out;
+}
 
+async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise<Outgoing> {
   if (trimmed.startsWith('/')) {
     return handleCommand(trimmed.split(/\s+/)[0]!.toLowerCase(), msg, deps);
   }
@@ -318,7 +435,8 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
       const state = applyAnswer(fresh, 'yes');
       deps.store.saveState(state);
       transition('consent given → interview started', fresh, state);
-      return askCurrent(state);
+      clearHistory(msg.userId);
+      return askConversational(state, { kind: 'consent_given' }, msg, deps, false);
     }
     log.debug('no state and no consent → consent prompt', { userId: msg.userId });
     return {
@@ -329,6 +447,7 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
 
   if (/^restart$/i.test(trimmed)) {
     deps.store.clearState(msg.userId);
+    clearHistory(msg.userId);
     log.debug('restart → state cleared', { userId: msg.userId });
     return { text: renderConsent(), options: ['YES'] };
   }
@@ -346,8 +465,9 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
   }
 
   const redaction = redactSensitive(trimmed);
-  const reminder = redaction.redacted ? SENSITIVE_REMINDER : undefined;
-  if (redaction.redacted) {
+  const redacted = redaction.redacted;
+  const reminder = redacted ? SENSITIVE_REMINDER : undefined;
+  if (redacted) {
     log.warn('sensitive input redacted before model call', { userId: msg.userId, redactedText: redaction.text });
   }
 
@@ -374,12 +494,16 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
     const next = applyAnswer(stored, value);
     deps.store.saveState(next);
     transition(`${intent.kind} → stored ${field.id}`, stored, next, { field: field.id, value });
-    return isComplete(next) ? complete(next, msg, deps) : askCurrent(next, reminder);
+    const event: TurnEvent =
+      value === null
+        ? { kind: 'dont_know_stored', fieldId: field.id }
+        : { kind: 'answer_stored', fieldId: field.id, shown: showValue(value) };
+    return advance(stored, next, event, msg, deps, redacted);
   }
 
   if (intent.kind === 'skip_request') {
     log.debug('skip refused: field is required', { field: field.id });
-    return askCurrent(stored, [reminder, 'This one is needed to work out your position.'].filter(Boolean).join('\n\n'));
+    return advance(stored, stored, { kind: 'skip_refused' }, msg, deps, redacted);
   }
 
   if (intent.kind === 'correction') {
@@ -387,30 +511,28 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
       const next = applyCorrection(stored, intent.fieldId, intent.value);
       deps.store.saveState(next);
       transition('correction applied', stored, next, { fieldId: intent.fieldId, value: intent.value });
-      return askCurrent(
+      return advance(
+        stored,
         next,
-        [reminder, `Updated "${promptFor(intent.fieldId)}" to ${showValue(intent.value)}.`]
-          .filter(Boolean)
-          .join('\n\n'),
+        { kind: 'correction_applied', fieldId: intent.fieldId, shown: showValue(intent.value) },
+        msg,
+        deps,
+        redacted,
       );
     } catch (error) {
       log.warn('correction rejected → re-ask current field', { fieldId: intent.fieldId, ...errorData(error) });
-      return askCurrent(stored, reminder);
+      return advance(stored, stored, { kind: 'off_topic', retries: stored.retries + 1 }, msg, deps, redacted);
     }
   }
 
   if (intent.kind === 'question') {
     const why = await rephraseRationale(field, msg, deps);
-    return askCurrent(stored, [reminder, why].filter(Boolean).join('\n\n'));
+    return advance(stored, stored, { kind: 'question_answered', explanation: why }, msg, deps, redacted);
   }
 
   const retries = stored.retries + 1;
   const next = { ...stored, retries };
   deps.store.saveState(next);
   log.debug('off-topic → redirect', { field: field.id, retries });
-  const redirect =
-    retries >= 2
-      ? "Let us stay with the assessment. You can reply 'don't know' to skip this one."
-      : 'Let us stay with the assessment.';
-  return askCurrent(next, [reminder, redirect].filter(Boolean).join('\n\n'));
+  return advance(stored, next, { kind: 'off_topic', retries }, msg, deps, redacted);
 }

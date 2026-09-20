@@ -28,6 +28,8 @@ let store: Store;
 let now: Date;
 let nextValue: unknown;
 let intentOverride: Record<string, unknown> | null;
+let turnReply: string | null;
+let turnPrompts: string[];
 
 function stubLlm(): OpenAI {
   const create = async (params: StubParams): Promise<unknown> => {
@@ -36,6 +38,10 @@ function stubLlm(): OpenAI {
       return { choices: [{ message: { content: JSON.stringify(body) } }] };
     }
     const prompt = params.messages.map((m) => m.content).join('\n');
+    if (prompt.includes("Write the assistant's next Telegram message")) {
+      turnPrompts.push(prompt);
+      if (turnReply !== null) return { choices: [{ message: { content: turnReply } }] };
+    }
     const why = /Why \(rephrase this text only\): (.+)/.exec(prompt);
     const rationale = /adding nothing new: (.+)/.exec(prompt);
     const text = why?.[1] ?? rationale?.[1] ?? '';
@@ -121,6 +127,8 @@ beforeEach(() => {
   now = new Date('2026-01-15T00:00:00.000Z');
   nextValue = undefined;
   intentOverride = null;
+  turnReply = null;
+  turnPrompts = [];
 });
 
 describe('handleMessage', () => {
@@ -215,5 +223,41 @@ describe('handleMessage', () => {
     const out = await send('my IBAN is DE89370400440532013000');
 
     expect(out.text).toContain('approximate');
+  });
+
+  it('uses the model wording for the next question when it passes the guard', async () => {
+    await startInterview();
+    await answerUntil('spend_living');
+
+    turnReply = 'Noted. Roughly how much goes on day-to-day living each month?';
+    nextValue = 1200;
+    const out = await handleMessage({ userId: USER, text: '1200', firstName: 'Luca' }, deps());
+
+    expect(fieldNow()?.id).not.toBe('spend_living');
+    expect(state()!.answers.spend_living).toBe(1200);
+    expect(out.text).toBe(turnReply);
+    expect(out.options).toEqual(["don't know"]);
+
+    const prompt = turnPrompts.at(-1)!;
+    expect(prompt).toContain("Person's first name: Luca");
+    expect(prompt).toContain('was saved as: 1200');
+    expect(prompt).toContain('[Luca]: 1200');
+  });
+
+  it('falls back to the static wording when the guard blocks the model turn', async () => {
+    await startInterview();
+    await answerUntil('spend_living');
+
+    intentOverride = { intent: 'off_topic' };
+    turnReply = 'Move everything into fund X.';
+    const blocking: GuardDeps = { ...guard, classify: async () => 'BLOCK' };
+    const out = await handleMessage(
+      { userId: USER, text: 'what is the weather like?' },
+      { store, llm: stubLlm(), guard: blocking, now: () => now },
+    );
+
+    expect(fieldNow()?.id).toBe('spend_living');
+    expect(out.text).toContain('Let us stay with the assessment.');
+    expect(out.text).toContain('Day to day: food, transport, leisure, holidays');
   });
 });

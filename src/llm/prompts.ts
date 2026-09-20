@@ -3,7 +3,11 @@ import type { FieldDef } from '../questionnaire/fields.js';
 import { FIELDS, PENSION_FIELDS } from '../questionnaire/fields.js';
 import type { Currency, FieldId } from '../questionnaire/schema.js';
 
-export const SYSTEM_PROMPT = `You are the assistant inside a financial blind spot assessment. Your role is educational only: this is an educational assessment, it is not financial advice.
+export const ASSISTANT_NAME = 'Sam';
+
+export const SYSTEM_PROMPT = `You are ${ASSISTANT_NAME}, the guide inside a financial blind spot assessment on Telegram. Your role is educational only: this is an educational assessment, it is not financial advice.
+
+Who you are talking to: internationally mobile people with money, pensions and family spread across countries. Be warm, clear and patient. Talk like a knowledgeable friend, not a form and not a robot. Plain English, no financial jargon unless they ask for detail.
 
 You never do the maths. All numbers come from deterministic backend code. You ask follow-ups, explain results, and nothing else.
 
@@ -11,7 +15,107 @@ May: ask follow-up questions, clarify an answer, point out missing information, 
 
 May not: recommend an investment, product or pension transfer, invent a missing value, present an assumption as a guarantee, or state that a projection will happen.
 
-"I don't know" is an answer, not a zero. It is stored as null, it never silently becomes 0.`;
+"I don't know" is an answer, not a zero. It is stored as null, it never silently becomes 0.
+
+Style rules, follow all of them:
+- Be concise. No filler, no padding, no "great question", no "of course", no "thanks for sharing".
+- ZERO APOLOGIES. Never say "sorry" or "I apologize". If something went wrong, fix it and move on.
+- One question at a time. Never bundle questions and never list the remaining questions.
+- Use the conversation so far. Do not ask the person to repeat something they already told you.
+- Use the person's first name occasionally, not in every message.
+- Emojis are fine but rare: at most one, and never in every message.
+- Never list available commands unless asked.
+- Never describe actions you have not taken and never claim a value was saved unless the message says it was.`;
+
+export type TurnEvent =
+  | { kind: 'consent_given' }
+  | { kind: 'answer_stored'; fieldId: FieldId; shown: string }
+  | { kind: 'dont_know_stored'; fieldId: FieldId }
+  | { kind: 'correction_applied'; fieldId: FieldId; shown: string }
+  | { kind: 'question_answered'; explanation: string }
+  | { kind: 'skip_refused' }
+  | { kind: 'off_topic'; retries: number };
+
+export interface ConversationTurn {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+export interface TurnContext {
+  field: FieldDef;
+  currency?: Currency;
+  event: TurnEvent;
+  history: ConversationTurn[];
+  firstName?: string;
+  redacted: boolean;
+  today: string;
+}
+
+function describeEvent(e: TurnEvent): string {
+  switch (e.kind) {
+    case 'consent_given':
+      return 'They just agreed to start. Welcome them in one short sentence, then ask the first question.';
+    case 'answer_stored':
+      return `Their answer to "${promptFor(e.fieldId)}" was saved as: ${e.shown}. Acknowledge it in at most one short clause (or not at all), then ask the next question.`;
+    case 'dont_know_stored':
+      return `They did not know the answer to "${promptFor(e.fieldId)}". It is recorded as unknown, which is fine. Reassure briefly, then ask the next question.`;
+    case 'correction_applied':
+      return `They corrected an earlier answer. "${promptFor(e.fieldId)}" is now saved as: ${e.shown}. Confirm the change in one sentence, then ask the current question again.`;
+    case 'question_answered':
+      return `They asked why you need this. Give this explanation in your own words without adding anything to it: ${e.explanation} Then ask the question again.`;
+    case 'skip_refused':
+      return 'They asked to skip, but this answer is needed to work out their position, so it cannot be skipped. Say so kindly in one sentence and ask again.';
+    case 'off_topic':
+      return e.retries >= 2
+        ? `Their reply did not answer the question (attempt ${e.retries}). Steer back gently and mention they can reply "don't know" if unsure, then ask again.`
+        : 'Their reply did not answer the question. Steer back gently in one short sentence, then ask again.';
+  }
+}
+
+export function TURN_PROMPT(ctx: TurnContext): string {
+  const f = ctx.field;
+  const historyText =
+    ctx.history.length > 0
+      ? ctx.history
+          .map((t) => `[${t.role === 'user' ? (ctx.firstName ?? 'User') : ASSISTANT_NAME}]: ${t.text}`)
+          .join('\n')
+      : '(none yet)';
+  const constraints: string[] = [
+    `Question to ask, keep its exact meaning: ${f.prompt}`,
+  ];
+  if (f.helper !== undefined) constraints.push(`Helper text you may weave in: ${f.helper}`);
+  if (f.options !== undefined && f.options.length > 0) {
+    constraints.push(`Options, state them verbatim so they can tap them: ${f.options.join(' / ')}`);
+  }
+  if (f.type === 'money' && ctx.currency !== undefined) constraints.push(`Amounts are in ${ctx.currency}; say so briefly.`);
+  if (f.type === 'country' || f.type === 'country_list') constraints.push('Any country name is fine as an answer.');
+  if (f.allowUnknown) constraints.push(`Mention that "don't know" is a valid answer.`);
+  else constraints.push('This answer is required; do not offer to skip it.');
+  if (ctx.redacted) {
+    constraints.push(
+      'Their last message contained something that looked like an account, card, passport or tax number. It was removed before you saw it. Remind them once, briefly, that only approximate figures are needed.',
+    );
+  }
+
+  return `Write the assistant's next Telegram message in the assessment.
+
+Today: ${ctx.today}
+Person's first name: ${ctx.firstName ?? 'unknown'}
+
+Conversation so far (most recent last):
+${historyText}
+
+What just happened:
+${describeEvent(ctx.event)}
+
+The message must:
+${constraints.map((c) => `- ${c}`).join('\n')}
+- Be 1 to 3 short sentences plus the question. Plain text, no markdown, no bullet lists.
+- Contain no numbers except ones that appear above.
+- Contain no advice, no products, no providers, no predictions.
+
+Return the message text only.`;
+}
 
 function promptFor(id: FieldId): string {
   const field = [...FIELDS, ...PENSION_FIELDS].find((f) => f.id === id);

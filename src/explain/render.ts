@@ -1,5 +1,6 @@
 import type { Assessment } from '../assess/assess.js';
 import type { Delta } from '../assess/compare.js';
+import { ASSISTANT_NAME } from '../llm/prompts.js';
 import type { FieldDef } from '../questionnaire/fields.js';
 import type { Answers, Currency } from '../questionnaire/schema.js';
 import type { RuleId } from '../rules/rules.js';
@@ -56,15 +57,13 @@ function amount(value: number | null, currency: Currency): string {
 
 export function renderConsent(): string {
   return [
-    'Understand where you stand',
+    `Hi, I'm ${ASSISTANT_NAME}. In about ten minutes I'll help you see where you stand: what you might be overlooking, and whether you're on track for the retirement you want.`,
     '',
-    'This builds a picture of your finances, shows what you might be overlooking, and estimates whether you are on track for the retirement you want. It is educational, and it is not financial advice. Your results depend on the information and assumptions you give.',
+    'Rough figures are fine. Answer in your own words, say "don\'t know" when you don\'t, and ask me anything along the way.',
     '',
-    'Please do not enter bank logins, account numbers, card numbers, passport details or tax numbers. We do not need them.',
+    'Two things first. This is an educational assessment, not financial advice, and the results depend on the information and assumptions you give. Please do not enter bank logins, account numbers, card numbers, passport details or tax numbers. I do not need them.',
     '',
-    'I understand this is an educational assessment, not financial advice.',
-    '',
-    'Reply YES to continue',
+    'Reply YES to continue and we start.',
   ].join('\n');
 }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   SYSTEM_PROMPT,
+  TURN_PROMPT,
   INTENT_PROMPT,
   EXPLANATION_PROMPT,
   GUARDRAIL_PROMPT,
@@ -101,5 +102,42 @@ describe('GUARDRAIL_PROMPT', () => {
     expect(GUARDRAIL_PROMPT).toContain('transfer');
     expect(GUARDRAIL_PROMPT).toContain('allocation percentage');
     expect(GUARDRAIL_PROMPT).toContain('promises');
+  });
+});
+
+describe('TURN_PROMPT', () => {
+  const prompt = TURN_PROMPT({
+    field: incomeField,
+    currency: 'EUR',
+    event: { kind: 'answer_stored', fieldId: 'age', shown: '41' },
+    history: [
+      { role: 'assistant', text: 'How old are you?' },
+      { role: 'user', text: '41' },
+    ],
+    firstName: 'Luca',
+    redacted: true,
+    today: 'January 15, 2026',
+  });
+
+  it('carries the question, the event, the history and the guard rails', () => {
+    expect(prompt).toContain(incomeField.prompt);
+    expect(prompt).toContain('was saved as: 41');
+    expect(prompt).toContain('[Luca]: 41');
+    expect(prompt).toContain('[Sam]: How old are you?');
+    expect(prompt).toContain('Amounts are in EUR');
+    expect(prompt).toContain('approximate figures');
+    expect(prompt).toContain('no advice, no products');
+  });
+
+  it('marks required fields as not skippable', () => {
+    const required = TURN_PROMPT({
+      field: { ...incomeField, allowUnknown: false },
+      event: { kind: 'skip_refused' },
+      history: [],
+      redacted: false,
+      today: 'January 15, 2026',
+    });
+    expect(required).toContain('do not offer to skip');
+    expect(required).not.toContain('"don\'t know" is a valid answer');
   });
 });

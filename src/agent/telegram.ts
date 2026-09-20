@@ -41,7 +41,9 @@ export async function startTelegram(
     const incoming: Incoming = {
       userId: String(ctx.from.id),
       text: ctx.message.text,
+      firstName: ctx.from.first_name,
     };
+    void ctx.replyWithChatAction('typing').catch(() => undefined);
     const started = Date.now();
     log.info('← user', { userId: incoming.userId, text: incoming.text });
     log.debug('raw update', {
