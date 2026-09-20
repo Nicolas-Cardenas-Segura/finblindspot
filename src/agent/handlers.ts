@@ -501,7 +501,11 @@ function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outg
     sentAt: null,
     cancelled: false,
   });
-  return { text: `I will remind you on ${formatDate(due)}. Send /revisit any time before that.` };
+  const when =
+    deps.nudgeDemoMinutes === undefined
+      ? `on ${formatDate(due)}`
+      : `in about ${deps.nudgeDemoMinutes} minute${deps.nudgeDemoMinutes === 1 ? '' : 's'} (demo mode stands in for ${months} months)`;
+  return { text: `I will remind you ${when}. Send /revisit any time before that.` };
 }
 
 async function startInterview(msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
