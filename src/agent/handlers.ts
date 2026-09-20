@@ -51,6 +51,7 @@ export interface Incoming {
 export interface Outgoing {
   text: string;
   document?: OutgoingDocument;
+  followUp?: string;
 }
 
 export interface OutgoingDocument {
@@ -406,12 +407,10 @@ async function complete(
     log.debug('comparison with previous assessment', { previousId: previous.id, delta });
     parts.push(renderProgress(previous, assessment, delta));
   }
-  parts.push('Your full report is attached as a PDF you can save or share.');
-  parts.push(NUDGE_QUESTION);
 
   const data = await buildReport({ assessment, whys, previous, delta });
   const filename = reportFilename(assessment);
-  const reportText = parts.slice(0, -2).join('\n\n');
+  const reportText = parts.join('\n\n');
   deps.store.insertReport({
     id: crypto.randomUUID(),
     user_id: msg.userId,
@@ -424,8 +423,9 @@ async function complete(
   log.debug('report built and stored', { assessmentId: assessment.id, filename, bytes: data.length });
 
   return {
-    text: parts.join('\n\n'),
+    text: reportText,
     document: { filename, data, caption: reportCaption(assessment) },
+    followUp: NUDGE_QUESTION,
   };
 }
 

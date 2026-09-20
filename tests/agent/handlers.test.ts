@@ -150,13 +150,14 @@ describe('handleMessage', () => {
 
     expect(finished.text).toContain('At 65');
     expect(finished.text).toContain('13,600');
-    expect(finished.text).toContain('remind you to re-assess in 6 or 12 months');
+    expect(finished.followUp).toContain('remind you to re-assess in 6 or 12 months');
+    expect(finished.text).not.toContain('remind you to re-assess');
+    expect(finished.text).not.toContain('attached as a PDF');
     expect(finished.document?.filename).toMatch(/^myfingap-report-.*\.pdf$/);
     expect(finished.document?.data.subarray(0, 5).toString()).toBe('%PDF-');
     const storedReport = store.latestReport(USER);
     expect(storedReport?.pdf.equals(finished.document!.data)).toBe(true);
-    expect(storedReport?.text).toContain('At 65');
-    expect(storedReport?.text).not.toContain('remind you to re-assess');
+    expect(storedReport?.text).toBe(finished.text);
 
     const resent = await send('/report');
     expect(resent.document?.filename).toBe(finished.document?.filename);
@@ -215,7 +216,9 @@ describe('handleMessage', () => {
     expect(report.text).toContain('partial picture');
     expect(report.text.indexOf('partial picture')).toBeLessThan(report.text.indexOf('Blind spots I could not check'));
     expect(report.text).toContain('no retirement projection to show');
-    expect(report.text).toContain('remind you to re-assess in 6 or 12 months');
+    expect(report.followUp).toContain('remind you to re-assess in 6 or 12 months');
+    expect(report.text).not.toContain('remind you to re-assess');
+    expect(report.text).not.toContain('attached as a PDF');
     expect(report.document?.caption).toContain('partial');
 
     const saved = store.listAssessments(USER);

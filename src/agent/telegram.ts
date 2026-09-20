@@ -7,7 +7,32 @@ export const ERROR_REPLY =
 
 const log = createLogger('telegram');
 
+const CAPTION_LIMIT = 1024;
+
 let activeBot: Bot | null = null;
+
+export interface ReplyTarget {
+  reply(text: string, other?: { reply_markup?: { remove_keyboard: true } }): Promise<unknown>;
+  replyWithDocument(document: InputFile, other?: { caption?: string }): Promise<unknown>;
+}
+
+export async function sendOutgoing(ctx: ReplyTarget, outgoing: Outgoing): Promise<void> {
+  const textOptions = { reply_markup: { remove_keyboard: true } } as const;
+  if (outgoing.document !== undefined) {
+    const file = new InputFile(outgoing.document.data, outgoing.document.filename);
+    if (outgoing.text.length <= CAPTION_LIMIT) {
+      await ctx.replyWithDocument(file, { caption: outgoing.text });
+    } else {
+      await ctx.reply(outgoing.text, textOptions);
+      await ctx.replyWithDocument(file, { caption: outgoing.document.caption });
+    }
+  } else {
+    await ctx.reply(outgoing.text, textOptions);
+  }
+  if (outgoing.followUp !== undefined) {
+    await ctx.reply(outgoing.followUp, textOptions);
+  }
+}
 
 export async function sendMessage(userId: string, text: string): Promise<void> {
   if (activeBot === null) throw new Error('Telegram bot not started');
@@ -54,12 +79,7 @@ export async function startTelegram(
         text: outgoing.text,
         document: outgoing.document?.filename,
       });
-      await ctx.reply(outgoing.text, { reply_markup: { remove_keyboard: true } });
-      if (outgoing.document !== undefined) {
-        await ctx.replyWithDocument(new InputFile(outgoing.document.data, outgoing.document.filename), {
-          caption: outgoing.document.caption,
-        });
-      }
+      await sendOutgoing(ctx, outgoing);
     } catch (error) {
       log.error('handler failed, sending error reply', {
         userId: incoming.userId,
