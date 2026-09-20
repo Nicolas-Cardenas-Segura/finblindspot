@@ -59,6 +59,20 @@ describe('renderConsent', () => {
     expect(text).toContain('not financial advice');
     expect(text).toContain('Please do not enter bank logins');
     expect(text).toContain('Reply YES to continue');
+    expect(text).not.toContain('I already hold these reports for you');
+  });
+
+  it('lists previously generated reports and how to download them', () => {
+    const text = renderConsent([
+      { index: 1, date: 'January 15, 2026', status: 'complete' },
+      { index: 2, date: 'September 20, 2026', status: 'partial' },
+    ]);
+    expect(text).toContain('I already hold these reports for you; I will use them as input for the new one where relevant:');
+    expect(text).toContain('1. January 15, 2026 — full report');
+    expect(text).toContain('2. September 20, 2026 — partial report');
+    expect(text).toContain('Reply "download 2" to get one of them again, or "download" for the latest.');
+    expect(text.indexOf('I already hold these reports')).toBeLessThan(text.indexOf('Two things first'));
+    expect(text).toContain('Reply YES to continue');
   });
 });
 

@@ -67,7 +67,7 @@ Under EU regulations, personalized retail investment advice is a regulated activ
 | `/revisit` | Prefilled re-assessment: previous unknowns first, then "still right?" per field; creates a new immutable assessment and renders the Then / Now / Change progress view. |
 | `/forget` | Deletes all stored data for the requesting user and confirms in chat. |
 | `/skip` | Leaves the current question unanswered and moves on (natural language such as "rather not say" works too). |
-| `/report` | Resends the latest stored PDF report. |
+| `/report` | Resends the latest stored PDF report; `/report N` (or `download N`) resends an earlier one, and the `/start` welcome lists the reports already held for you — they are used as input for the new one. |
 | `/stop` | Ends the interview now and renders a partial report: gaps first, then any projection and blind spots the answers so far support. |
 
 ---

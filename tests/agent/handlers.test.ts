@@ -183,6 +183,22 @@ describe('handleMessage', () => {
     expect(both[0]).toEqual(before);
     expect(store.dueNudges('2027-12-31T00:00:00.000Z')).toHaveLength(0);
 
+    const reports = store.listReports(USER);
+    expect(reports).toHaveLength(2);
+
+    const welcome = await send('/start');
+    expect(welcome.text).toContain('input for the new one');
+    expect(welcome.text).toContain('1. January 15, 2026');
+    expect(welcome.text).toContain('2. July 20, 2026');
+
+    const firstAgain = await send('download 1');
+    expect(firstAgain.text).toContain('January 15, 2026');
+    expect(firstAgain.document?.data.equals(reports[0]!.pdf)).toBe(true);
+
+    const outOfRange = await send('download 3');
+    expect(outOfRange.text).toContain('I only have 2 report(s) for you');
+    expect(outOfRange.document).toBeUndefined();
+
     const forgotten = await send('/forget');
     expect(forgotten.text).toContain('2 reports');
     expect(store.listAssessments(USER)).toHaveLength(0);
