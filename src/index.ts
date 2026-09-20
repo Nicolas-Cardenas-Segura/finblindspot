@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { HandlerDeps } from './agent/handlers.js';
 import { handleMessage } from './agent/handlers.js';
-import { sendMessage, startTelegram } from './agent/telegram.js';
+import { sendMessage, startTelegram, stopTelegram } from './agent/telegram.js';
 import { loadEnv } from './config/env.js';
 import { classifyOutbound } from './guardrail/classifier.js';
 import { createNebiusClient } from './llm/nebius.js';
@@ -56,6 +56,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: string) => {
     log.info('shutting down', { signal });
     scheduler.stop();
+    void stopTelegram().catch((err: unknown) => log.error('stop failed', errorData(err)));
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));

@@ -23,6 +23,13 @@ export async function sendMessage(userId: string, text: string): Promise<void> {
   await activeBot.api.sendMessage(userId, text);
 }
 
+export async function stopTelegram(): Promise<void> {
+  if (activeBot === null) return;
+  log.info('stopping long polling');
+  await activeBot.stop();
+  activeBot = null;
+}
+
 export async function startTelegram(
   token: string,
   onMessage: (m: Incoming) => Promise<Outgoing>,

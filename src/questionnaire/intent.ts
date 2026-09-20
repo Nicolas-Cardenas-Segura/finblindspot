@@ -116,7 +116,7 @@ async function classifyWithModel(
     case 'answer': {
       const result = parseFieldValue(field.id, body.value);
       if (!result.success) {
-        log.debug('answer value rejected by schema → off_topic', { field: field.id, value: body.value, result });
+        log.warn('answer value rejected by schema → off_topic', { field: field.id, value: body.value, reason: result.reason });
         return { kind: 'off_topic' };
       }
       return { kind: 'answer', value: result.value };
@@ -129,7 +129,7 @@ async function classifyWithModel(
       }
       const result = parseFieldValue(fieldId as FieldId, body.value);
       if (!result.success) {
-        log.debug('correction value rejected by schema → off_topic', { field_id: fieldId, value: body.value, result });
+        log.warn('correction value rejected by schema → off_topic', { field_id: fieldId, value: body.value, reason: result.reason });
         return { kind: 'off_topic' };
       }
       return { kind: 'correction', fieldId: fieldId as FieldId, value: result.value };

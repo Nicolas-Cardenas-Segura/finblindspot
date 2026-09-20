@@ -203,7 +203,12 @@ export const FIELD_PARSERS: Record<FieldId, z.ZodType<unknown>> = {
   ...((AssumptionsSchema as unknown as z.ZodObject<Record<keyof Assumptions, z.ZodType<unknown>>>).shape),
 };
 
-export function parseFieldValue(fieldId: FieldId, value: unknown): { success: true; value: unknown } | { success: false } {
+export function parseFieldValue(
+  fieldId: FieldId,
+  value: unknown,
+): { success: true; value: unknown } | { success: false; reason: string } {
   const r = FIELD_PARSERS[fieldId].safeParse(value);
-  return r.success ? { success: true, value: r.data } : { success: false };
+  return r.success
+    ? { success: true, value: r.data }
+    : { success: false, reason: r.error.issues.map((i) => i.message).join('; ') };
 }

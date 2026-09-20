@@ -42,7 +42,13 @@ Return JSON only, with this shape:
 { "intent": "answer" | "dont_know" | "question" | "correction" | "skip_request" | "off_topic", "value"?: <typed value>, "field_id"?: <one of the already answered field IDs> }
 
 Rules:
-- "value" is required for "answer" and "correction", and must match the field's type (a plain number for money, integer, percent and year fields; one of the listed options for enum fields).
+- "value" is required for "answer" and "correction", and must match the field's type:
+  money, integer, year: a plain number (no units, no strings).
+  percent: a plain number in percent, e.g. 8.5 for 8.5%.
+  enum, currency: exactly one of the listed options.
+  multi_select: an array of the listed options.
+  country: an ISO-3166 alpha-2 code in upper case, e.g. "Spain" -> "ES", "UK" -> "GB".
+  country_list: an array of ISO-3166 alpha-2 codes.
 - "field_id" is required for "correction" and must be one of the already answered field IDs listed above; the corrected "value" belongs to that field.
 - Zero is a valid value when zeroValid is true. "I don't know" is "dont_know", never 0.
 - Use "question" when the user asks something instead of answering, "skip_request" when they ask to skip or move on, and "off_topic" for anything else.
