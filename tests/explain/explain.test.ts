@@ -10,6 +10,8 @@ import type { FiredRule } from '../../src/rules/evaluate.js';
 import { DEFAULT_ASSUMPTIONS } from '../../src/config/assumptions.js';
 import { CASES } from '../fixtures/cases.js';
 
+const models = { interview: 'test-model', guardrail: 'test-guardrail-model' };
+
 const DRAFT = 'You have less than three months of spending set aside in cash.';
 
 function buildAssessment(): Assessment {
@@ -65,7 +67,7 @@ describe('explainBlindSpot', () => {
     const { client, prompts } = stubClient(DRAFT);
     const { guard } = stubGuard('ALLOW');
 
-    const text = await explainBlindSpot(RULE, buildAssessment(), { client, guard });
+    const text = await explainBlindSpot(RULE, buildAssessment(), { client, guard, models });
 
     expect(text).toBe(DRAFT);
     expect(prompts).toHaveLength(1);
@@ -76,7 +78,7 @@ describe('explainBlindSpot', () => {
     const { client, prompts } = stubClient('Move your cash into a bond fund.');
     const { guard, triggers } = stubGuard('BLOCK');
 
-    const text = await explainBlindSpot(RULE, buildAssessment(), { client, guard });
+    const text = await explainBlindSpot(RULE, buildAssessment(), { client, guard, models });
 
     expect(text).toBe(loadContent().thin_emergency_fund.why);
     expect(prompts).toHaveLength(2);

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type OpenAI from 'openai';
 import type { Outgoing } from '../../src/agent/handlers.js';
 import { handleMessage } from '../../src/agent/handlers.js';
+import { createConversationMemory } from '../../src/agent/memory.js';
 import { DEFAULT_ASSUMPTIONS } from '../../src/config/assumptions.js';
 import type { GuardDeps } from '../../src/guardrail/guard.js';
 import { currentField } from '../../src/interview/stateMachine.js';
@@ -30,6 +31,7 @@ let nextValue: unknown;
 let intentOverride: Record<string, unknown> | null;
 let turnReply: string | null;
 let turnPrompts: string[];
+let conversation: ReturnType<typeof createConversationMemory>['conversation'];
 
 function stubLlm(): OpenAI {
   const create = async (params: StubParams): Promise<unknown> => {
@@ -57,7 +59,14 @@ const guard: GuardDeps = {
 };
 
 function deps(): Parameters<typeof handleMessage>[1] {
-  return { store, llm: stubLlm(), guard, now: () => now };
+  return {
+    store,
+    llm: stubLlm(),
+    models: { interview: 'test-model', guardrail: 'test-model' },
+    conversation,
+    guard,
+    now: () => now,
+  };
 }
 
 function send(text: string): Promise<Outgoing> {
@@ -128,6 +137,7 @@ beforeEach(() => {
   intentOverride = null;
   turnReply = null;
   turnPrompts = [];
+  conversation = createConversationMemory({ url: 'file::memory:' }).conversation;
 });
 
 describe('handleMessage', () => {
@@ -144,6 +154,15 @@ describe('handleMessage', () => {
     const out = await send('/start');
     expect(fieldNow()?.id).toBe('age');
     expect(out.text).toContain('How old are you?');
+  });
+
+  it('does not wipe an incomplete draft on /start', async () => {
+    await send('/start');
+    const out = await send('/start');
+    expect(out.text).toBe(
+      'You have an assessment in progress. Reply "resume" to carry on where you left off, or "restart" to start again.',
+    );
+    expect(fieldNow()?.id).toBe('age');
   });
 
   it('starts the interview for a free-text first message with no state', async () => {
@@ -404,7 +423,14 @@ describe('handleMessage', () => {
     const blocking: GuardDeps = { ...guard, classify: async () => 'BLOCK' };
     const out = await handleMessage(
       { userId: USER, text: 'what is the weather like?' },
-      { store, llm: stubLlm(), guard: blocking, now: () => now },
+      {
+        store,
+        llm: stubLlm(),
+        guard: blocking,
+        models: { interview: 'test-model', guardrail: 'test-model' },
+        conversation,
+        now: () => now,
+      },
     );
 
     expect(fieldNow()?.id).toBe('spend_living');

@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
-import { MODELS, chatText } from '../llm/nebius.js';
+import type { Models } from '../llm/nebius.js';
+import { chatText } from '../llm/nebius.js';
 import { INTENT_PROMPT } from '../llm/prompts.js';
 import { createLogger, errorData } from '../log/logger.js';
 import type { FieldDef } from './fields.js';
@@ -80,7 +81,7 @@ export async function classifyIntent(
   field: FieldDef,
   reply: string,
   ctx: IntentContext,
-  deps: { client: OpenAI },
+  deps: { client: OpenAI; models: Models },
 ): Promise<Intent> {
   const deterministic = classifyIntentDeterministic(field, reply);
   if (deterministic !== null) {
@@ -89,7 +90,7 @@ export async function classifyIntent(
   }
 
   const answered = Object.keys(ctx.answered) as FieldId[];
-  const intent = await classifyWithModel(field, reply, answered, ctx.currency, ctx.open ?? [], deps.client);
+  const intent = await classifyWithModel(field, reply, answered, ctx.currency, ctx.open ?? [], deps.client, deps.models);
   log.debug('model classification', { field: field.id, reply, intent });
   return intent;
 }
@@ -118,6 +119,7 @@ async function classifyWithModel(
   currency: Currency | undefined,
   open: FieldDef[],
   client: OpenAI,
+  models: Models,
 ): Promise<Intent> {
   let content = '';
   let parsed: unknown;
@@ -125,7 +127,7 @@ async function classifyWithModel(
     content = await chatText(
       client,
       {
-        model: MODELS.interview,
+        model: models.interview,
         messages: [
           { role: 'system', content: INTENT_PROMPT(field, answered, currency, open) },
           { role: 'user', content: reply },

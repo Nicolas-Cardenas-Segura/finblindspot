@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type OpenAI from 'openai';
 import type { Assessment } from '../../src/assess/assess.js';
 import { runAssessment } from '../../src/assess/assess.js';
+import { createConversationMemory } from '../../src/agent/memory.js';
 import { handleMessage } from '../../src/agent/handlers.js';
 import { DEFAULT_ASSUMPTIONS } from '../../src/config/assumptions.js';
 import { loadEnv } from '../../src/config/env.js';
@@ -13,7 +14,7 @@ import type { GuardDeps } from '../../src/guardrail/guard.js';
 import { classifyOutbound } from '../../src/guardrail/classifier.js';
 import { allowedNumbers, hasInventedNumber } from '../../src/guardrail/numbers.js';
 import { applyAnswer, createState } from '../../src/interview/stateMachine.js';
-import { createNebiusClient } from '../../src/llm/nebius.js';
+import { createNebiusClient, modelsFromEnv } from '../../src/llm/nebius.js';
 import type { Store } from '../../src/store/db.js';
 import { openStore } from '../../src/store/db.js';
 import { CASES } from '../../tests/fixtures/cases.js';
@@ -127,6 +128,7 @@ async function main(): Promise<void> {
   const library = JSON.stringify(loadContent());
 
   const llm = offline ? offlineLlm() : createNebiusClient(loadEnv());
+  const models = modelsFromEnv(loadEnv());
   const results: PromptResult[] = [];
 
   for (const row of prompts) {
@@ -138,16 +140,17 @@ async function main(): Promise<void> {
       library,
     );
     const guard: GuardDeps = {
-      classify: offline ? async () => 'ALLOW' : (text) => classifyOutbound(text, { client: llm }),
+      classify: offline ? async () => 'ALLOW' : (text) => classifyOutbound(text, { client: llm, models }),
       inventedNumber: (text) => hasInventedNumber(text, allowed),
       logTrigger: (t) => store.logTrigger(t),
       maxAttempts: MAX_ATTEMPTS,
     };
 
     const before = store.countTriggers();
+    const { conversation } = createConversationMemory({ url: 'file::memory:' });
     const outgoing = await handleMessage(
       { userId: USER, text: row.prompt },
-      { store, llm, guard, now: () => now },
+      { store, llm, guard, models, conversation, now: () => now },
     );
     const triggers = store.countTriggers() - before;
     const fellBack = triggers >= MAX_ATTEMPTS;

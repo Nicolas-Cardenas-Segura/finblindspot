@@ -1,13 +1,15 @@
 import 'dotenv/config';
 import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
+import { createAgent } from './agent/agent.js';
 import type { HandlerDeps } from './agent/handlers.js';
 import { handleMessage } from './agent/handlers.js';
 import { createIdleWatcher } from './agent/idle.js';
+import { createConversationMemory } from './agent/memory.js';
 import { sendMessage, startTelegram, stopTelegram } from './agent/telegram.js';
 import { loadEnv } from './config/env.js';
 import { classifyOutbound } from './guardrail/classifier.js';
-import { createNebiusClient } from './llm/nebius.js';
+import { createNebiusClient, modelsFromEnv } from './llm/nebius.js';
 import { createLogger, errorData, setLogLevel } from './log/logger.js';
 import { startNudgeScheduler } from './nudge/scheduler.js';
 import { openStore } from './store/db.js';
@@ -33,13 +35,21 @@ async function main(): Promise<void> {
   const client = createNebiusClient(env);
   mkdirSync(dirname(env.DATABASE_PATH), { recursive: true });
   const store = openStore(env.DATABASE_PATH);
+  const models = modelsFromEnv(env);
+  const { memory, conversation } = createConversationMemory({
+    url: `file:${join(dirname(env.DATABASE_PATH), 'memory.sqlite')}`,
+  });
+  const agent = createAgent(client, models, memory);
   log.debug('store opened', { databasePath: env.DATABASE_PATH });
 
   const deps: HandlerDeps = {
     store,
     llm: client,
+    models,
+    conversation,
+    agent,
     guard: {
-      classify: (t) => classifyOutbound(t, { client }),
+      classify: (t) => classifyOutbound(t, { client, models }),
       inventedNumber: () => false,
       logTrigger: (t) => {
         log.warn('compliance trigger stored', { ...t });

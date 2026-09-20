@@ -3,7 +3,8 @@ import type { Assessment } from '../assess/assess.js';
 import type { GuardDeps } from '../guardrail/guard.js';
 import { guardedGenerate } from '../guardrail/guard.js';
 import { allowedNumbers, hasInventedNumber } from '../guardrail/numbers.js';
-import { MODELS, chatText } from '../llm/nebius.js';
+import type { Models } from '../llm/nebius.js';
+import { chatText } from '../llm/nebius.js';
 import { EXPLANATION_PROMPT, SYSTEM_PROMPT } from '../llm/prompts.js';
 import { createLogger } from '../log/logger.js';
 import type { FiredRule } from '../rules/evaluate.js';
@@ -109,7 +110,7 @@ function ruleNumbers(ruleId: RuleId, assessment: Assessment): Record<string, num
 export async function explainBlindSpot(
   rule: FiredRule,
   assessment: Assessment,
-  deps: { client: OpenAI; guard: GuardDeps },
+  deps: { client: OpenAI; guard: GuardDeps; models: Models },
 ): Promise<string> {
   const content = loadContent()[rule.rule_id];
   const fallback = fillPlaceholders(content.why, assessment.answers, assessment.results);
@@ -138,7 +139,7 @@ export async function explainBlindSpot(
       chatText(
         deps.client,
         {
-          model: MODELS.interview,
+          model: deps.models.interview,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: prompt },

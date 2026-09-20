@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@mastra/core": "1.66.0",
+    "@mastra/libsql": "1.22.5",
+    "@mastra/memory": "1.29.0",
     "better-sqlite3": "13.0.3",
     "dotenv": "17.4.2",
     "grammy": "1.46.0",

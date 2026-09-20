@@ -1,4 +1,5 @@
 import type OpenAI from 'openai';
+import type { Agent } from '@mastra/core/agent';
 import type { Assessment } from '../assess/assess.js';
 import { runPartialAssessment } from '../assess/assess.js';
 import { compare } from '../assess/compare.js';
@@ -27,8 +28,10 @@ import {
   stopInterview,
 } from '../interview/stateMachine.js';
 import { createRevisitState } from '../interview/revisit.js';
-import { MODELS, chatText } from '../llm/nebius.js';
-import type { ConversationTurn, TurnEvent } from '../llm/prompts.js';
+import type { ConversationMemory } from './memory.js';
+import type { Models } from '../llm/nebius.js';
+import { chatText } from '../llm/nebius.js';
+import type { TurnEvent } from '../llm/prompts.js';
 import { SYSTEM_PROMPT, TURN_PROMPT } from '../llm/prompts.js';
 import { createLogger, errorData } from '../log/logger.js';
 import { dueAt } from '../nudge/scheduler.js';
@@ -64,7 +67,10 @@ export interface OutgoingDocument {
 export interface HandlerDeps {
   store: Store;
   llm: OpenAI;
+  models: Models;
   guard: GuardDeps;
+  conversation: ConversationMemory;
+  agent?: Agent;
   now?: () => Date;
   nudgeDemoMinutes?: number;
 }
@@ -77,21 +83,7 @@ const HELP =
 
 const NUDGE_QUESTION = 'Would you like me to remind you to re-assess in 6 or 12 months? Reply with the number of months, or no.';
 
-const HISTORY_TURNS = 16;
-
 const log = createLogger('handler');
-
-const histories = new Map<string, ConversationTurn[]>();
-
-function remember(userId: string, turn: ConversationTurn): void {
-  const h = histories.get(userId) ?? [];
-  h.push(turn);
-  histories.set(userId, h.slice(-HISTORY_TURNS));
-}
-
-export function clearHistory(userId: string): void {
-  histories.delete(userId);
-}
 
 function stateSummary(s: InterviewState | undefined): Record<string, unknown> | undefined {
   if (s === undefined) return undefined;
@@ -249,7 +241,7 @@ async function askConversational(
   const field = currentField(s);
   if (field === null || s.mode !== 'assess') return fallback;
 
-  const history = histories.get(msg.userId) ?? [];
+  const history = await deps.conversation.history(msg.userId);
   const sectionStart = isSectionStart(field, event) ? SECTIONS[field.section] : undefined;
   const lastUser = [...history].reverse().find((t) => t.role === 'user')?.text ?? '';
   const knowledge = retrieve(`${lastUser} ${field.prompt} ${field.rationale}`, 3, [`field:${field.id}`]).map(
@@ -276,7 +268,7 @@ async function askConversational(
         chatText(
           deps.llm,
           {
-            model: MODELS.interview,
+            model: deps.models.interview,
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
               { role: 'user', content: prompt },
@@ -342,7 +334,7 @@ async function rephraseRationale(
       chatText(
         deps.llm,
         {
-          model: MODELS.interview,
+          model: deps.models.interview,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content },
@@ -434,6 +426,7 @@ async function complete(
     whys[fired.rule_id] = await explainBlindSpot(fired, assessment, {
       client: deps.llm,
       guard: deps.guard,
+      models: deps.models,
     });
   }
 
@@ -508,7 +501,7 @@ function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outg
 
 async function startInterview(msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
   deps.store.clearState(msg.userId);
-  clearHistory(msg.userId);
+  await deps.conversation.forget(msg.userId);
   const fresh = createState(msg.userId);
   const state = applyAnswer(fresh, 'yes');
   deps.store.saveState(state);
@@ -520,6 +513,13 @@ async function startInterview(msg: Incoming, deps: HandlerDeps): Promise<Outgoin
 async function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
   log.debug('command', { userId: msg.userId, command });
   if (command === '/start') {
+    const state = deps.store.loadState(msg.userId);
+    if (state !== undefined && !state.complete) {
+      log.debug('/start with draft in progress → resume/restart prompt', { state: stateSummary(state) });
+      return {
+        text: 'You have an assessment in progress. Reply "resume" to carry on where you left off, or "restart" to start again.',
+      };
+    }
     return startInterview(msg, deps);
   }
 
@@ -546,7 +546,7 @@ async function handleCommand(command: string, msg: Incoming, deps: HandlerDeps):
   }
 
   if (command === '/forget') {
-    clearHistory(msg.userId);
+    await deps.conversation.forget(msg.userId);
     const counts = deps.store.deleteUser(msg.userId);
     log.info('/forget executed', { userId: msg.userId, ...counts });
     return {
@@ -560,10 +560,12 @@ async function handleCommand(command: string, msg: Incoming, deps: HandlerDeps):
 export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
   const trimmed = msg.text.trim();
   if (!trimmed.startsWith('/')) {
-    remember(msg.userId, { role: 'user', text: redactSensitive(trimmed).text });
+    await deps.conversation.remember(msg.userId, { role: 'user', text: redactSensitive(trimmed).text });
   }
   const out = await route(msg, trimmed, deps);
-  remember(msg.userId, { role: 'assistant', text: out.text });
+  if (!trimmed.startsWith('/forget')) {
+    await deps.conversation.remember(msg.userId, { role: 'assistant', text: out.text });
+  }
   return out;
 }
 
@@ -652,7 +654,7 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
       currency: stored.answers.base_currency as Currency | undefined,
       open: stored.mode === 'assess' ? openFields(stored) : [],
     },
-    { client: deps.llm },
+    { client: deps.llm, models: deps.models },
   );
 
   if (intent.kind === 'answer_others') {

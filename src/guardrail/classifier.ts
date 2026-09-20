@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
-import { MODELS, chatText } from '../llm/nebius.js';
+import type { Models } from '../llm/nebius.js';
+import { chatText } from '../llm/nebius.js';
 import { GUARDRAIL_PROMPT } from '../llm/prompts.js';
 import { createLogger } from '../log/logger.js';
 
@@ -7,11 +8,11 @@ export type Verdict = 'ALLOW' | 'BLOCK';
 
 const log = createLogger('guard:classifier');
 
-export async function classifyOutbound(text: string, deps: { client: OpenAI }): Promise<Verdict> {
+export async function classifyOutbound(text: string, deps: { client: OpenAI; models: Models }): Promise<Verdict> {
   const reply = await chatText(
     deps.client,
     {
-      model: MODELS.guardrail,
+      model: deps.models.guardrail,
       messages: [
         { role: 'system', content: GUARDRAIL_PROMPT },
         { role: 'user', content: text },
