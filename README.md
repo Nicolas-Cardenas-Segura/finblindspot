@@ -144,6 +144,7 @@ Environment variables (`.env.example`):
 | `DATABASE_PATH` | SQLite file; parent directory is created on boot |
 | `NUDGE_TICK_SECONDS` | How often the in-process scheduler checks for due reminders |
 | `NUDGE_DEMO_MINUTES` | Demo fast-forward: "6 months" becomes 6 × N minutes (empty = real months) |
+| `IDLE_PROPOSE_STOP_SECONDS` | Seconds of silence before Sam offers to stop and build a report from what was given (default 45) |
 | `GALTEA_API_KEY` | Optional; `npx tsx eval/galtea/run.ts --offline` runs the adversarial suite without it |
 | `LOG_LEVEL` | `debug` \| `info` (default) \| `warn` \| `error` \| `silent`; `npm run dev` forces `debug` unless set in the shell |
 
