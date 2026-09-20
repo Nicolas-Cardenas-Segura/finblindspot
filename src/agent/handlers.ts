@@ -274,10 +274,14 @@ async function askConversational(
               { role: 'user', content: prompt },
             ],
             temperature: 0.4,
-            max_tokens: 200,
+            max_tokens: 600,
+            reasoning_effort: 'low',
           },
           `turn ${field.id}/${event.kind}`,
-        ),
+        ).then((text) => {
+          if (text.trim() === '') throw new Error('empty turn completion');
+          return text;
+        }),
       fallback.text,
       { userId: msg.userId },
       deps.guard,
