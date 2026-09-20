@@ -1,4 +1,4 @@
-import { Bot, Keyboard } from 'grammy';
+import { Bot, InputFile } from 'grammy';
 import { createLogger, errorData } from '../log/logger.js';
 import type { Incoming, Outgoing } from './handlers.js';
 
@@ -6,14 +6,6 @@ export const ERROR_REPLY =
   'Sorry, something went wrong on my side. Please send that again.';
 
 const log = createLogger('telegram');
-
-function keyboard(options: string[]): Keyboard {
-  const kb = new Keyboard();
-  for (const option of options) {
-    kb.text(option).row();
-  }
-  return kb.oneTime();
-}
 
 let activeBot: Bot | null = null;
 
@@ -59,15 +51,15 @@ export async function startTelegram(
       log.info('→ bot', {
         userId: incoming.userId,
         ms: Date.now() - started,
-        options: outgoing.options,
         text: outgoing.text,
+        document: outgoing.document?.filename,
       });
-      await ctx.reply(
-        outgoing.text,
-        outgoing.options
-          ? { reply_markup: keyboard(outgoing.options) }
-          : undefined,
-      );
+      await ctx.reply(outgoing.text, { reply_markup: { remove_keyboard: true } });
+      if (outgoing.document !== undefined) {
+        await ctx.replyWithDocument(new InputFile(outgoing.document.data, outgoing.document.filename), {
+          caption: outgoing.document.caption,
+        });
+      }
     } catch (error) {
       log.error('handler failed, sending error reply', {
         userId: incoming.userId,

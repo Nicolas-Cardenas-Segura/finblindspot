@@ -150,7 +150,9 @@ describe('handleMessage', () => {
 
     expect(finished.text).toContain('At 65');
     expect(finished.text).toContain('13,600');
-    expect(finished.text).toContain('Remind you in 6 or 12 months? (6 / 12 / no)');
+    expect(finished.text).toContain('remind you to re-assess in 6 or 12 months');
+    expect(finished.document?.filename).toMatch(/^finblindspot-report-.*\.pdf$/);
+    expect(finished.document?.data.subarray(0, 5).toString()).toBe('%PDF-');
 
     const nudged = await send('6');
     expect(nudged.text).toContain('July');
@@ -203,7 +205,8 @@ describe('handleMessage', () => {
     expect(report.text).toContain('partial picture');
     expect(report.text.indexOf('partial picture')).toBeLessThan(report.text.indexOf('Blind spots I could not check'));
     expect(report.text).toContain('no retirement projection to show');
-    expect(report.text).toContain('Remind you in 6 or 12 months?');
+    expect(report.text).toContain('remind you to re-assess in 6 or 12 months');
+    expect(report.document?.caption).toContain('partial');
 
     const saved = store.listAssessments(USER);
     expect(saved).toHaveLength(1);
@@ -293,7 +296,7 @@ describe('handleMessage', () => {
     expect(fieldNow()?.id).not.toBe('spend_living');
     expect(state()!.answers.spend_living).toBe(1200);
     expect(out.text).toBe(turnReply);
-    expect(out.options).toEqual(["don't know"]);
+    expect(out.document).toBeUndefined();
 
     const prompt = turnPrompts.at(-1)!;
     expect(prompt).toContain("Person's first name: Luca");

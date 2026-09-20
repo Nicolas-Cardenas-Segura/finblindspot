@@ -106,7 +106,9 @@ export function TURN_PROMPT(ctx: TurnContext): string {
   }
   if (f.helper !== undefined) constraints.push(`Helper text you may weave in: ${f.helper}`);
   if (f.options !== undefined && f.options.length > 0) {
-    constraints.push(`Options, state them verbatim so they can tap them: ${f.options.join(' / ')}`);
+    constraints.push(
+      `The answer will be mapped onto one of these internal values: ${f.options.join(' / ')}. Ask it as an open question in plain words; do not list the values or offer a menu.`,
+    );
   }
   if (f.type === 'money' && ctx.currency !== undefined) constraints.push(`Amounts are in ${ctx.currency}; say so briefly.`);
   if (f.type === 'country' || f.type === 'country_list') constraints.push('Any country name is fine as an answer.');

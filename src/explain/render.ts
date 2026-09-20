@@ -34,11 +34,11 @@ export function money(n: number, currency: Currency): string {
   return `${SYMBOLS[currency]}${group(roundHundred(n))}`;
 }
 
-function exactMoney(n: number, currency: Currency): string {
+export function exactMoney(n: number, currency: Currency): string {
   return `${SYMBOLS[currency]}${group(n)}`;
 }
 
-function percent(rate: number): string {
+export function percent(rate: number): string {
   return `${Number((rate * 100).toFixed(2))}%`;
 }
 
@@ -53,7 +53,7 @@ function signed(value: number | null, currency: Currency): string {
   return `${sign}${exactMoney(Math.abs(rounded), currency)}`;
 }
 
-function amount(value: number | null, currency: Currency): string {
+export function amount(value: number | null, currency: Currency): string {
   if (value === null) return 'unknown';
   const rounded = roundHundred(value);
   return `${rounded < 0 ? '−' : ''}${exactMoney(Math.abs(rounded), currency)}`;
@@ -81,7 +81,6 @@ function prefillText(value: unknown, currency?: Currency): string {
 export function renderQuestion(f: FieldDef, currency?: Currency, prefill?: unknown): string {
   const lines: string[] = [f.prompt];
   if (f.helper !== undefined) lines.push(f.helper);
-  if (f.options !== undefined && f.options.length > 0) lines.push(f.options.join(' / '));
   if (f.type === 'money' && currency !== undefined) lines.push(`Amounts in ${currency}.`);
   if (f.allowUnknown) lines.push("(reply 'don't know' if unsure)");
   if (prefill !== undefined) {
@@ -105,7 +104,7 @@ function excludedPensionNote(a: Assessment): string | null {
   );
 }
 
-function assumptionsLine(a: Assessment): string {
+export function assumptionsLine(a: Assessment): string {
   const s = a.assumptions;
   return (
     `Assumptions: inflation ${percent(s.inflation_rate)}, investments and pensions ${percent(s.investment_growth_rate)}, ` +
@@ -204,7 +203,7 @@ export function renderActionPlan(a: Assessment, whys: Record<RuleId, string>): s
       fillPlaceholders(entry.headline, a.answers, a.results),
       fillPlaceholders(why, a.answers, a.results),
       ...entry.learn.map((item) => `- ${item}`),
-      entry.ask,
+      fillPlaceholders(entry.ask, a.answers, a.results),
     ];
     return lines.join('\n');
   });
@@ -242,7 +241,7 @@ export function renderGaps(a: Assessment): string | null {
   return lines.join('\n');
 }
 
-function monthlySaving(answers: Answers): number | null {
+export function monthlySaving(answers: Answers): number | null {
   if (answers.saving_monthly_other === null) return null;
   return answers.pensions.reduce(
     (acc, p) => acc + p.pension_contribution_monthly,
@@ -250,7 +249,7 @@ function monthlySaving(answers: Answers): number | null {
   );
 }
 
-function emergencyMonths(a: Assessment): number | null {
+export function emergencyMonths(a: Assessment): number | null {
   const spending = a.derived.monthly_spending;
   if (a.answers.cash_total === null || spending === null || spending === 0) return null;
   return a.answers.cash_total / spending;

@@ -3,6 +3,7 @@ import type { Assessment } from '../assess/assess.js';
 import { runPartialAssessment } from '../assess/assess.js';
 import { compare } from '../assess/compare.js';
 import { explainBlindSpot } from '../explain/explain.js';
+import { buildReport, reportFilename } from '../explain/report.js';
 import {
   renderActionPlan,
   renderConsent,
@@ -49,7 +50,13 @@ export interface Incoming {
 
 export interface Outgoing {
   text: string;
-  options?: string[];
+  document?: OutgoingDocument;
+}
+
+export interface OutgoingDocument {
+  filename: string;
+  data: Buffer;
+  caption?: string;
 }
 
 export interface HandlerDeps {
@@ -66,9 +73,7 @@ const SENSITIVE_REMINDER =
 const HELP =
   'I can run /start for a new assessment, /revisit to update the last one, and /forget to delete everything I hold about you. During an assessment, /skip leaves a question out and /stop ends it with a report on what you have told me so far.';
 
-const NUDGE_QUESTION = 'Remind you in 6 or 12 months? (6 / 12 / no)';
-
-const NUDGE_OPTIONS = ['6', '12', 'no'];
+const NUDGE_QUESTION = 'Would you like me to remind you to re-assess in 6 or 12 months? Reply with the number of months, or no.';
 
 const HISTORY_TURNS = 16;
 
@@ -111,13 +116,6 @@ function transition(label: string, before: InterviewState, after: InterviewState
   });
 }
 
-function optionsFor(f: FieldDef): string[] | undefined {
-  if (f.options !== undefined && f.options.length > 0) {
-    return f.allowUnknown ? [...f.options, "don't know"] : [...f.options];
-  }
-  return f.allowUnknown ? ["don't know"] : undefined;
-}
-
 function askCurrent(s: InterviewState, prefix?: string): Outgoing {
   const f = currentField(s);
   if (f === null) return { text: prefix ?? HELP };
@@ -126,7 +124,7 @@ function askCurrent(s: InterviewState, prefix?: string): Outgoing {
       ? (s.prefill as unknown as Record<string, unknown>)[f.id]
       : undefined;
   const question = renderQuestion(f, s.answers.base_currency as Currency | undefined, prefill);
-  return { text: prefix === undefined ? question : `${prefix}\n\n${question}`, options: optionsFor(f) };
+  return { text: prefix === undefined ? question : `${prefix}\n\n${question}` };
 }
 
 function staticTurn(s: InterviewState, event: TurnEvent, reminder?: string): Outgoing {
@@ -251,7 +249,7 @@ async function askConversational(
     });
     const text = generated.text.trim();
     if (generated.fellBack || text === '') return fallback;
-    return { text, options: fallback.options };
+    return { text };
   } catch (error) {
     log.warn('turn phrasing failed → static wording', { field: field.id, ...errorData(error) });
     return fallback;
@@ -393,19 +391,30 @@ async function complete(
   const gaps = renderGaps(assessment);
   const parts = [renderResults(assessment), renderActionPlan(assessment, whys)];
   if (gaps !== null) parts.unshift(gaps);
-  if (previous !== undefined) {
-    const delta = compare(previous, assessment);
+  const delta = previous === undefined ? undefined : compare(previous, assessment);
+  if (previous !== undefined && delta !== undefined) {
     log.debug('comparison with previous assessment', { previousId: previous.id, delta });
     parts.push(renderProgress(previous, assessment, delta));
   }
+  parts.push('Your full report is attached as a PDF you can save or share.');
   parts.push(NUDGE_QUESTION);
 
-  return { text: parts.join('\n\n'), options: NUDGE_OPTIONS };
+  const data = await buildReport({ assessment, whys, previous, delta });
+  log.debug('report built', { assessmentId: assessment.id, bytes: data.length });
+
+  return {
+    text: parts.join('\n\n'),
+    document: {
+      filename: reportFilename(assessment),
+      data,
+      caption: assessment.status === 'partial' ? 'Your partial financial blind spot report' : 'Your financial blind spot report',
+    },
+  };
 }
 
 function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outgoing {
   const now = (deps.now ?? (() => new Date()))();
-  const months = text.trim() === '6' ? 6 : text.trim() === '12' ? 12 : null;
+  const months = /\b12\b/.test(text) ? 12 : /\b6\b|\bsix\b/i.test(text) ? 6 : null;
   deps.store.clearState(msg.userId);
   log.debug('nudge choice', { userId: msg.userId, text, months });
 
@@ -447,11 +456,10 @@ function handleCommand(command: string, msg: Incoming, deps: HandlerDeps): Outgo
       log.debug('/start with draft in progress → resume/restart prompt', { state: stateSummary(state) });
       return {
         text: 'You have an assessment in progress. Reply "resume" to carry on where you left off, or "restart" to start again.',
-        options: ['resume', 'restart'],
       };
     }
     deps.store.clearState(msg.userId);
-    return { text: renderConsent(), options: ['YES'] };
+    return { text: renderConsent() };
   }
 
   if (command === '/revisit') {
@@ -540,7 +548,6 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
     log.debug('no state and no consent → consent prompt', { userId: msg.userId });
     return {
       text: 'Consent is required before we start. Reply YES to continue, or /start to read it again.',
-      options: ['YES'],
     };
   }
 
@@ -548,7 +555,7 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
     deps.store.clearState(msg.userId);
     clearHistory(msg.userId);
     log.debug('restart → state cleared', { userId: msg.userId });
-    return { text: renderConsent(), options: ['YES'] };
+    return { text: renderConsent() };
   }
 
   if (/^resume$/i.test(trimmed)) {
