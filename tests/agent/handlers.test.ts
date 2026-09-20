@@ -6,6 +6,7 @@ import { createConversationMemory } from '../../src/agent/memory.js';
 import { DEFAULT_ASSUMPTIONS } from '../../src/config/assumptions.js';
 import type { GuardDeps } from '../../src/guardrail/guard.js';
 import { currentField } from '../../src/interview/stateMachine.js';
+import { noopTelemetry } from '../../src/observability/galtea.js';
 import type { InterviewState } from '../../src/interview/stateMachine.js';
 import type { FieldDef } from '../../src/questionnaire/fields.js';
 import type { Assumptions } from '../../src/questionnaire/schema.js';
@@ -64,6 +65,7 @@ function deps(): Parameters<typeof handleMessage>[1] {
     llm: stubLlm(),
     models: { interview: 'test-model', guardrail: 'test-model' },
     conversation,
+    telemetry: noopTelemetry,
     guard,
     now: () => now,
   };
@@ -429,6 +431,7 @@ describe('handleMessage', () => {
         guard: blocking,
         models: { interview: 'test-model', guardrail: 'test-model' },
         conversation,
+        telemetry: noopTelemetry,
         now: () => now,
       },
     );

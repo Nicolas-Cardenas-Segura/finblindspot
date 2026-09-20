@@ -11,6 +11,8 @@ import { loadEnv } from './config/env.js';
 import { classifyOutbound } from './guardrail/classifier.js';
 import { createNebiusClient, modelsFromEnv } from './llm/nebius.js';
 import { createLogger, errorData, setLogLevel } from './log/logger.js';
+import { setTelemetry } from './llm/nebius.js';
+import { createTelemetry } from './observability/galtea.js';
 import { startNudgeScheduler } from './nudge/scheduler.js';
 import { openStore } from './store/db.js';
 
@@ -19,6 +21,8 @@ const log = createLogger('main');
 async function main(): Promise<void> {
   const env = loadEnv();
   setLogLevel(env.LOG_LEVEL);
+  const telemetry = createTelemetry(env);
+  setTelemetry(telemetry);
   log.info('starting finblindspot', {
     logLevel: env.LOG_LEVEL,
     databasePath: env.DATABASE_PATH,
@@ -47,6 +51,7 @@ async function main(): Promise<void> {
     llm: client,
     models,
     conversation,
+    telemetry,
     agent,
     guard: {
       classify: (t) => classifyOutbound(t, { client, models }),
@@ -81,12 +86,14 @@ async function main(): Promise<void> {
     scheduler.stop();
     watcher.stop();
     void stopTelegram().catch((err: unknown) => log.error('stop failed', errorData(err)));
+    void telemetry.shutdown().catch((err: unknown) => log.error('telemetry shutdown failed', errorData(err)));
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));
   await telegram;
   scheduler.stop();
   watcher.stop();
+  await telemetry.shutdown();
 }
 
 main().catch((err: unknown) => {

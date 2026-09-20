@@ -89,7 +89,7 @@ Out of scope for the MVP: custom web/mobile UI, banking API or credential integr
 ## 🛠️ Stack & Technology
 
 - **Agent & Channels**: [Mastra](https://mastra.ai) agent; Telegram via `grammy` long polling (see [`docs/tunnel.md`](docs/tunnel.md) — no public URL needed)
-- **Model Inference**: [Nebius Token Factory](https://tokenfactory.nebius.com) (`deepseek-ai/DeepSeek-V4.1-Flash` for answer extraction and explanation, `nvidia/Nemotron-3_5-Lightning` for the outbound guardrail); `openai/gpt-oss-120b` is a faster alternative via `NEBIUS_INTERVIEW_MODEL`
+- **Model Inference**: [Nebius Token Factory](https://tokenfactory.nebius.com) (`deepseek-ai/DeepSeek-V4.1-Flash` for answer extraction and explanation, `nvidia/Nemotron-3_5-Lightning` for the outbound guardrail); `openai/gpt-oss-120b` is a faster alternative via `NEBIUS_INTERVIEW_MODEL`. DeepSeek-V4.1-Flash also works but is ~2–3× slower because of hidden reasoning
 - **Evaluation & Adversarial Testing**: [Galtea](https://galtea.ai) (advice-boundary, invented-number and rule-not-fired probes)
 - **Language & Runtime**: TypeScript / Node.js, `zod`
 - **Storage**: Mastra `Agent` plus `@mastra/memory` backed by LibSQL owns conversation history in one per-user thread (last 16 turns); local SQLite (`better-sqlite3`) stores immutable assessments, deterministic interview state, nudges, and compliance triggers
@@ -147,10 +147,18 @@ Environment variables (`.env.example`):
 | `NUDGE_TICK_SECONDS` | How often the in-process scheduler checks for due reminders |
 | `NUDGE_DEMO_MINUTES` | Demo fast-forward: "6 months" becomes 6 × N minutes (empty = real months) |
 | `IDLE_PROPOSE_STOP_SECONDS` | Seconds of silence before Sam offers to stop and build a report from what was given (default 120) |
-| `GALTEA_API_KEY` | Optional; `npx tsx eval/galtea/run.ts --offline` runs the adversarial suite without it |
+| `GALTEA_API_KEY` | Optional Galtea OTLP bearer key; monitoring requires this and `GALTEA_VERSION_ID` |
+| `GALTEA_VERSION_ID` | Optional Galtea product version; monitoring is enabled only when both Galtea variables are set |
+| `GALTEA_OTEL_ENDPOINT` | Galtea OTLP traces endpoint (default `https://otel.platform.prod-main.galtea.ai:4318/otel/traces`) |
 | `LOG_LEVEL` | `debug` \| `info` (default) \| `warn` \| `error` \| `silent`; `npm run dev` forces `debug` unless set in the shell |
 
 Then talk to the bot: `/start` to run an assessment, `/revisit` to re-assess and see what moved, `/forget` to erase everything. The model only interprets what you *meant*; every number and every blind spot comes from `src/engine/` and `src/rules/` — see [`finance-blind-spot-v1-spec.html`](finance-blind-spot-v1-spec.html) for the formulas and rules being implemented.
+
+### Galtea monitoring
+
+Set both `GALTEA_API_KEY` and `GALTEA_VERSION_ID` to enable production monitoring. The app sends redacted user text, bot replies, model calls, and guardrail verdicts through OpenTelemetry. Each Telegram user has one Galtea session with custom ID `interview:<telegram user id>`; API keys are never logged.
+
+Run the adversarial evaluation online with `npx tsx eval/galtea/run.ts`, or locally without Galtea credentials with `npx tsx eval/galtea/run.ts --offline`.
 
 ---
 
