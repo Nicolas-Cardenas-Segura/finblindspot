@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_ASSUMPTIONS } from '../../src/config/assumptions.js';
-import { runAssessment } from '../../src/assess/assess.js';
+import { runAssessment, runPartialAssessment } from '../../src/assess/assess.js';
 import type { Assessment } from '../../src/assess/assess.js';
 import type { Delta } from '../../src/assess/compare.js';
 import type { Answers } from '../../src/questionnaire/schema.js';
@@ -12,6 +12,7 @@ import {
   renderProgress,
   renderQuestion,
   renderResults,
+  renderGaps,
   roundHundred,
 } from '../../src/explain/render.js';
 import { BASE, CASES } from '../fixtures/cases.js';
@@ -19,7 +20,7 @@ import { BASE, CASES } from '../fixtures/cases.js';
 const NOW = new Date('2026-03-01T00:00:00.000Z');
 
 function assessment(answers: Answers, id = 'a1'): Assessment {
-  const { derived, results, blind_spots } = runAssessment(answers, DEFAULT_ASSUMPTIONS, NOW);
+  const { derived, results, blind_spots, unanswered, not_assessed } = runAssessment(answers, DEFAULT_ASSUMPTIONS, NOW);
   return {
     id,
     user_id: 'u1',
@@ -31,6 +32,8 @@ function assessment(answers: Answers, id = 'a1'): Assessment {
     derived,
     results,
     blind_spots,
+    unanswered,
+    not_assessed,
   };
 }
 
@@ -110,6 +113,58 @@ describe('renderActionPlan', () => {
     const a = assessment(CASES.D.answers);
     const text = renderActionPlan({ ...a, blind_spots: a.blind_spots.slice(0, 2) }, {} as Record<RuleId, string>);
     expect(text).toContain('no other blind spot detected');
+  });
+});
+
+describe('renderGaps', () => {
+  it('returns null for a complete assessment', () => {
+    expect(renderGaps(assessment(BASE))).toBeNull();
+  });
+
+  it('leads with the gap, groups unanswered prompts by section and names unchecked blind spots', () => {
+    const partial: Partial<Answers> = { ...BASE };
+    delete partial.cash_total;
+    delete partial.retire_income_monthly;
+    const computed = runPartialAssessment(partial, DEFAULT_ASSUMPTIONS, NOW);
+    const a: Assessment = {
+      id: 'p1',
+      user_id: 'u1',
+      created_at: NOW.toISOString(),
+      status: 'partial',
+      base_currency: BASE.base_currency,
+      assumptions: DEFAULT_ASSUMPTIONS,
+      ...computed,
+    };
+    const text = renderGaps(a);
+    expect(text).not.toBeNull();
+    expect(text).toContain('partial picture');
+    expect(text).toContain('2 of the questions were left unanswered');
+    expect(text).toContain('What you own and owe:');
+    expect(text).toContain('The retirement you want:');
+    expect(text).toContain(`Blind spots I could not check`);
+    expect(text).toContain('Your safety net is thin');
+    expect(text).toContain('/start');
+    expect(renderActionPlan(a, {} as Record<RuleId, string>)).toContain('in the parts you covered');
+  });
+
+  it('explains the missing projection when age and retirement age were not given', () => {
+    const partial: Partial<Answers> = { base_currency: 'EUR', has_partner: 'just_me', dependants: 0, life_cover: 'no' };
+    const computed = runPartialAssessment(partial, DEFAULT_ASSUMPTIONS, NOW);
+    const a: Assessment = {
+      id: 'p2',
+      user_id: 'u1',
+      created_at: NOW.toISOString(),
+      status: 'partial',
+      base_currency: 'EUR',
+      assumptions: DEFAULT_ASSUMPTIONS,
+      ...computed,
+    };
+    expect(a.results.mode).toBe('not_assessed');
+    expect(renderResults(a)).toContain('no retirement projection to show');
+    expect(a.blind_spots.map((b) => b.rule_id)).toEqual([]);
+    expect(a.not_assessed).not.toContain('family_unprotected');
+    expect(a.not_assessed).toContain('thin_emergency_fund');
+    expect(a.unanswered).toContain('pensions');
   });
 });
 

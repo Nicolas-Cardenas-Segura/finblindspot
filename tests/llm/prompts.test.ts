@@ -174,15 +174,17 @@ describe('TURN_PROMPT', () => {
     expect(follow).toContain('but not the current question');
   });
 
-  it('marks required fields as not skippable', () => {
+  it('accepts a declined answer on a required field without pushing back', () => {
     const required = TURN_PROMPT({
       field: { ...incomeField, allowUnknown: false },
-      event: { kind: 'skip_refused' },
+      event: { kind: 'skipped', fieldId: 'age' },
       history: [],
       redacted: false,
       today: 'January 15, 2026',
     });
-    expect(required).toContain('do not offer to skip');
+    expect(required).toContain('Do not offer to skip this one, but if they decline, accept it');
+    expect(required).toContain('chose not to answer');
+    expect(required).toContain('without pushing back');
     expect(required).not.toContain('"don\'t know" is a valid answer');
   });
 });

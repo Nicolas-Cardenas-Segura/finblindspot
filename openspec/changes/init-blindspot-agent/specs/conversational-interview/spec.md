@@ -52,7 +52,7 @@ The system SHALL offer an explicit "I don't know" option on every money and yes/
 - **THEN** the value `0` is stored, distinct from `null`.
 
 ### Requirement: Intent-First Inbound Pipeline
-Every free-text message SHALL pass through three stages in order: (1) the deterministic sensitive-input filter, (2) the interview model classifying the user's **intent** for the current field into exactly one of `answer`, `dont_know`, `question`, `correction`, `skip_request`, `off_topic` and, for `answer`/`correction`, extracting the typed value, (3) the deterministic state machine acting on that intent. The model SHALL not choose the next question, alter stored answers, decide what fires, or compute anything; given the same stored answers the engines SHALL produce the same blind spots regardless of how the intent was phrased.
+Every free-text message SHALL pass through three stages in order: (1) the deterministic sensitive-input filter, (2) the interview model classifying the user's **intent** for the current field into exactly one of `answer`, `dont_know`, `question`, `correction`, `skip_request`, `stop_request`, `off_topic` and, for `answer`/`correction`, extracting the typed value, (3) the deterministic state machine acting on that intent. The model SHALL not choose the next question, alter stored answers, decide what fires, or compute anything; given the same stored answers the engines SHALL produce the same blind spots regardless of how the intent was phrased.
 
 #### Scenario: Plain answer
 - **WHEN** the current field is `income_monthly` and the user writes "about 4.2k after tax"
@@ -71,8 +71,12 @@ Every free-text message SHALL pass through three stages in order: (1) the determ
 - **THEN** intent is `correction` with `field_id = spend_housing` and value `1500`; the state machine overwrites that field in the draft, confirms, and re-asks the current field.
 
 #### Scenario: User asks to skip
-- **WHEN** intent is `skip_request` on a field with `allowUnknown`
-- **THEN** the field is stored as `null` (same path as `dont_know`); on a required field without `allowUnknown` the bot explains the field is needed and re-asks.
+- **WHEN** intent is `skip_request` (or the user sends `/skip`) on any field, required or not
+- **THEN** no value is stored for that field, the field is recorded as skipped (distinct from `dont_know`, which stores `null`), the bot accepts without pushing back and moves to the next question.
+
+#### Scenario: User asks to stop
+- **WHEN** intent is `stop_request` (or the user sends `/stop`) while an interview is in progress
+- **THEN** the interview ends immediately, every remaining field is recorded as skipped, and a `partial` assessment is stored and rendered: the gap section first (unanswered questions grouped by section, and the blind spots that could not be checked because one of their declared inputs was never asked), then the projection if age, currency and retirement age are known, then the blind spots whose inputs were all asked. No missing value is invented; a rule with an unasked input is reported as not assessed, never as fired.
 
 #### Scenario: Off-topic message
 - **WHEN** intent is `off_topic` (greeting, chit-chat, unrelated request)

@@ -6,7 +6,10 @@ import {
   createState,
   currentField,
   isComplete,
+  skipField,
+  stopInterview,
 } from '../../src/interview/stateMachine.js';
+import { PENSION_FIELDS } from '../../src/questionnaire/fields.js';
 import type { InterviewState } from '../../src/interview/stateMachine.js';
 import { AnswersSchema } from '../../src/questionnaire/schema.js';
 import type { FieldId, PensionRow } from '../../src/questionnaire/schema.js';
@@ -168,5 +171,58 @@ describe('interview state machine', () => {
     s = applyMany(s, { pensions: 'yes', pension_value: 1 });
     expect(currentField(s)?.id).toBe('pension_country');
     expect(s.pending).toBeUndefined();
+  });
+});
+
+describe('skip and stop', () => {
+  it('skipField leaves a required field unanswered, records it and moves on', () => {
+    const s = answerUntil(createState('u1'), 'age');
+    const next = skipField(s);
+    expect(currentField(next)?.id).not.toBe('age');
+    expect('age' in next.answers).toBe(false);
+    expect(next.skipped).toEqual(['age']);
+    expect(next.retries).toBe(0);
+  });
+
+  it('skipping the first pension question records pensions as skipped and continues with the section', () => {
+    const s = answerUntil(createState('u1'), 'pension_country');
+    const next = skipField(s);
+    expect(next.answers.pensions).toEqual([]);
+    expect(next.skipped).toEqual(['pensions']);
+    expect(currentField(next)?.id).toBe('beneficiaries_named');
+  });
+
+  it('abandoning a pension row keeps the rows already entered', () => {
+    let s = answerUntil(createState('u1'), 'pension_country');
+    for (const f of PENSION_FIELDS) s = applyAnswer(s, BASE.pensions[0]![f.id as keyof PensionRow]);
+    expect(currentField(s)?.id).toBe('pensions');
+    s = applyAnswer(s, 'yes');
+    s = applyAnswer(s, 'GB');
+    const next = skipField(s);
+    expect(next.answers.pensions).toHaveLength(1);
+    expect(next.pensionDraft).toBeUndefined();
+    expect(next.skipped ?? []).not.toContain('pensions');
+  });
+
+  it('skipping an assumption keeps the default and does not count as a gap', () => {
+    const s = answerUntil(createState('u1'), 'inflation_rate');
+    const next = skipField(s);
+    expect(next.assumptions.inflation_rate).toBe(0.03);
+    expect(next.skipped ?? []).toEqual([]);
+  });
+
+  it('stopInterview completes immediately with only the answers given so far', () => {
+    const s = answerUntil(createState('u1'), 'cash_total');
+    const before = { ...s.answers };
+    const stopped = stopInterview(s);
+    expect(isComplete(stopped)).toBe(true);
+    expect(stopped.stopped).toBe(true);
+    for (const [id, value] of Object.entries(before)) {
+      expect((stopped.answers as Record<string, unknown>)[id]).toEqual(value);
+    }
+    expect('cash_total' in stopped.answers).toBe(false);
+    expect(stopped.skipped).toContain('cash_total');
+    expect(stopped.skipped).toContain('retire_age');
+    expect(stopped.pending).toBeUndefined();
   });
 });

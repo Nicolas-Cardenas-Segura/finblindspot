@@ -22,6 +22,8 @@ export interface InterviewState {
   complete: boolean;
   awaitingNudgeChoice?: boolean;
   pending?: Partial<Record<FieldId, unknown>>;
+  skipped?: FieldId[];
+  stopped?: boolean;
 }
 
 const ANOTHER_PENSION_INDEX = -1;
@@ -213,6 +215,35 @@ function drainPending(s: InterviewState): InterviewState {
 export function applyMany(s: InterviewState, values: Pending): InterviewState {
   const fresh = omit(values, new Set(Object.keys(s.answers).filter((id) => id !== 'pensions')));
   return drainPending(withPending(s, { ...(s.pending ?? {}), ...fresh }));
+}
+
+function markSkipped(s: InterviewState, id: FieldId): InterviewState {
+  const skipped = s.skipped ?? [];
+  return skipped.includes(id) ? s : { ...s, skipped: [...skipped, id] };
+}
+
+export function skipField(s: InterviewState): InterviewState {
+  const f = currentField(s);
+  if (f === null) return s;
+
+  if (f.id === 'pensions' || f.repeat === 'pensions') {
+    const { pensionDraft: _draft, pensionFieldIndex: _idx, ...rest } = s;
+    const pensions = s.answers.pensions ?? [];
+    const next: InterviewState = { ...rest, answers: { ...s.answers, pensions }, retries: 0 };
+    return pensions.length === 0 ? markSkipped(next, 'pensions') : next;
+  }
+
+  if (isAssumptionId(f.id)) {
+    return advanceToVisible({ ...s, fieldIndex: s.fieldIndex + 1, retries: 0 });
+  }
+
+  return advanceToVisible(markSkipped({ ...s, fieldIndex: s.fieldIndex + 1, retries: 0 }, f.id));
+}
+
+export function stopInterview(s: InterviewState): InterviewState {
+  let state = withPending(s, {});
+  while (!state.complete && currentField(state) !== null) state = skipField(state);
+  return { ...state, complete: true, stopped: true };
 }
 
 export function applyCorrection(

@@ -1,11 +1,15 @@
 import type { Assessment } from '../assess/assess.js';
 import type { Delta } from '../assess/compare.js';
 import { ASSISTANT_NAME } from '../llm/prompts.js';
-import type { FieldDef } from '../questionnaire/fields.js';
+import type { FieldDef, Section } from '../questionnaire/fields.js';
+import { FIELDS, SECTIONS } from '../questionnaire/fields.js';
 import type { Answers, Currency } from '../questionnaire/schema.js';
 import type { RuleId } from '../rules/rules.js';
+import { RULES } from '../rules/rules.js';
 import { selectActionPlan } from '../rules/evaluate.js';
 import { fillPlaceholders, loadContent } from './content.js';
+
+const PENSIONS_GAP: Pick<FieldDef, 'section' | 'prompt'> = { section: 'D', prompt: 'Your pensions' };
 
 const SYMBOLS: Record<Currency, string> = { EUR: '€', GBP: '£', USD: '$' };
 
@@ -165,6 +169,10 @@ export function renderResults(a: Assessment): string {
           `at 5% it is ${money(Math.abs(high.position), currency)}.`,
       );
     }
+  } else if (r.mode === 'not_assessed') {
+    lines.push(
+      'Without your age, your currency and the age you want to retire at there is no retirement projection to show. The blind spots I could check are below.',
+    );
   } else if (r.mode === 'no_target') {
     lines.push(
       'You have not told us the monthly income you want in retirement, so there is no projection to show. Your blind spots are below.',
@@ -200,8 +208,38 @@ export function renderActionPlan(a: Assessment, whys: Record<RuleId, string>): s
     ];
     return lines.join('\n');
   });
-  if (top.length < 3) blocks.push('no other blind spot detected');
+  if (top.length < 3) {
+    blocks.push(a.not_assessed.length > 0 ? 'no other blind spot detected in the parts you covered' : 'no other blind spot detected');
+  }
   return blocks.join('\n\n');
+}
+
+export function renderGaps(a: Assessment): string | null {
+  if (a.unanswered.length === 0 && a.not_assessed.length === 0) return null;
+  const content = loadContent();
+  const bySection = new Map<Section, string[]>();
+  for (const id of a.unanswered) {
+    const f = id === 'pensions' ? PENSIONS_GAP : FIELDS.find((x) => x.id === id);
+    if (f === undefined) continue;
+    bySection.set(f.section, [...(bySection.get(f.section) ?? []), f.prompt]);
+  }
+  const lines = [
+    `This is a partial picture: ${a.unanswered.length} of the questions were left unanswered, so treat what follows as what can be said so far, not the full assessment.`,
+  ];
+  if (bySection.size > 0) {
+    lines.push('', 'Not covered:');
+    for (const [section, prompts] of bySection) {
+      lines.push(`- ${SECTIONS[section].title}: ${prompts.join('; ')}`);
+    }
+  }
+  if (a.not_assessed.length > 0) {
+    lines.push(
+      '',
+      `Blind spots I could not check because of that (${a.not_assessed.length} of ${RULES.length}): ${a.not_assessed.map((id) => content[id].title).join(', ')}.`,
+    );
+  }
+  lines.push('', 'Send /start whenever you want to fill in the rest.');
+  return lines.join('\n');
 }
 
 function monthlySaving(answers: Answers): number | null {

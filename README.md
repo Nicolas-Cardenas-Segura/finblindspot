@@ -46,6 +46,7 @@ Under EU regulations, personalized retail investment advice is a regulated activ
 - **Field IDs are the contract**: every question maps to one ID; the engine only ever reads IDs.
 - **Plain Code Engine**: the projection formulas, validation, the twenty rules, severities, topic bump and top-three selection are pure TypeScript, specified in the [calculation-engine spec](openspec/changes/init-blindspot-agent/specs/calculation-engine/spec.md) and pinned by v1 test cases A–D.
 - **"I don't know" is an answer, not a zero**: stored as `null`, left out of the maths, listed as missing, and it fires its own blind spot. Not knowing is the finding.
+- **No answer is an answer too**: "skip" / `/skip` leaves a question out (no value is stored, nothing is invented) and "stop" / `/stop` ends the interview there. The report then comes out as a `partial` assessment that *leads with the gap*: which questions were not covered, and which of the twenty blind spots could not be checked because one of their declared inputs was never asked (`Rule.inputs`). Everything that *can* be computed from the answers given is still shown: the projection whenever age, currency and retirement age are known (flagged as a minimum estimate), and every rule whose inputs were all asked. An explicit "don't know" counts as asked; a skip does not, so a skipped debt question never turns into a "debt into retirement" finding.
 - **Single currency in v1**: `base_currency` is EUR / GBP / USD; multi-currency conversion is deferred to v2 per the v1 document.
 
 ### 3. Data Minimization & Privacy
@@ -63,6 +64,8 @@ Under EU regulations, personalized retail investment advice is a regulated activ
 | `/start` | Shows the education-only disclosure and no-credentials notice, records consent, then walks sections A–H one question at a time (resumes a draft if one exists). Ends with the results message, the three-item action plan, and a "remind me in 6 or 12 months?" choice that schedules a Telegram nudge. |
 | `/revisit` | Prefilled re-assessment: previous unknowns first, then "still right?" per field; creates a new immutable assessment and renders the Then / Now / Change progress view. |
 | `/forget` | Deletes all stored data for the requesting user and confirms in chat. |
+| `/skip` | Leaves the current question unanswered and moves on (natural language such as "rather not say" works too). |
+| `/stop` | Ends the interview now and renders a partial report: gaps first, then any projection and blind spots the answers so far support. |
 
 ---
 

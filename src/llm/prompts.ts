@@ -34,7 +34,7 @@ export type TurnEvent =
   | { kind: 'dont_know_stored'; fieldId: FieldId }
   | { kind: 'correction_applied'; fieldId: FieldId; shown: string }
   | { kind: 'question_answered'; explanation: string }
-  | { kind: 'skip_refused' }
+  | { kind: 'skipped'; fieldId: FieldId }
   | { kind: 'off_topic'; retries: number };
 
 export interface ConversationTurn {
@@ -74,8 +74,8 @@ function describeEvent(e: TurnEvent): string {
       return `They corrected an earlier answer. "${promptFor(e.fieldId)}" is now saved as: ${e.shown}. Confirm the change in one sentence, then ask the current question again.`;
     case 'question_answered':
       return `They asked a question. Give this answer in your own words without adding anything to it: ${e.explanation} Then ask the question again.`;
-    case 'skip_refused':
-      return 'They asked to skip, but this answer is needed to work out their position, so it cannot be skipped. Say so kindly in one sentence and ask again.';
+    case 'skipped':
+      return `They chose not to answer "${promptFor(e.fieldId)}". It is left out, which is their call; the final report will simply show that part as not assessed. Accept it in at most one short clause, without pushing back, then ask the next question.`;
     case 'off_topic':
       return e.retries >= 2
         ? `Their reply did not answer the question (attempt ${e.retries}). Steer back gently and mention they can reply "don't know" if unsure, then ask again.`
@@ -111,7 +111,7 @@ export function TURN_PROMPT(ctx: TurnContext): string {
   if (f.type === 'money' && ctx.currency !== undefined) constraints.push(`Amounts are in ${ctx.currency}; say so briefly.`);
   if (f.type === 'country' || f.type === 'country_list') constraints.push('Any country name is fine as an answer.');
   if (f.allowUnknown) constraints.push(`Mention that "don't know" is a valid answer.`);
-  else constraints.push('This answer is required; do not offer to skip it.');
+  else constraints.push('Do not offer to skip this one, but if they decline, accept it.');
   if (ctx.redacted) {
     constraints.push(
       'Their last message contained something that looked like an account, card, passport or tax number. It was removed before you saw it. Remind them once, briefly, that only approximate figures are needed.',
@@ -190,7 +190,7 @@ Other open questions in this part of the interview. The user may answer several 
 ${openList}
 
 Return JSON only, with this shape:
-{ "intent": "answer" | "dont_know" | "question" | "correction" | "skip_request" | "off_topic", "value"?: <typed value for the current field>, "values"?: { <open field id>: <typed value> }, "field_id"?: <one of the already answered field IDs> }
+{ "intent": "answer" | "dont_know" | "question" | "correction" | "skip_request" | "stop_request" | "off_topic", "value"?: <typed value for the current field>, "values"?: { <open field id>: <typed value> }, "field_id"?: <one of the already answered field IDs> }
 
 Rules:
 - "value" is required for "answer" and "correction", and must match the field's type:
@@ -203,7 +203,7 @@ Rules:
 - "field_id" is required for "correction" and must be one of the already answered field IDs listed above; the corrected "value" belongs to that field.
 - Zero is a valid value when zeroValid is true. "I don't know" is "dont_know", never 0.
 - Use "answer" with "values" (and "value" omitted) when the message answers other open questions but not the current one. Only include values the user actually stated; never guess or fill in defaults. Inside "values", null means the user said they do not know that one.
-- Use "question" when the user asks something instead of answering, "skip_request" when they ask to skip or move on, and "off_topic" for anything else.
+- Use "question" when the user asks something instead of answering, "skip_request" when they decline or want to skip just this question ("skip", "next", "rather not say"), "stop_request" when they want to end the interview and see what can be said so far ("stop", "that's enough", "just give me the results"), and "off_topic" for anything else.
 
 Examples:
 Reply: "about 4.2k after tax" -> { "intent": "answer", "value": 4200 }

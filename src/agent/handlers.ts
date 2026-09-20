@@ -1,11 +1,12 @@
 import type OpenAI from 'openai';
 import type { Assessment } from '../assess/assess.js';
-import { runAssessment } from '../assess/assess.js';
+import { runPartialAssessment } from '../assess/assess.js';
 import { compare } from '../assess/compare.js';
 import { explainBlindSpot } from '../explain/explain.js';
 import {
   renderActionPlan,
   renderConsent,
+  renderGaps,
   renderProgress,
   renderQuestion,
   renderResults,
@@ -20,6 +21,8 @@ import {
   createState,
   currentField,
   isComplete,
+  skipField,
+  stopInterview,
 } from '../interview/stateMachine.js';
 import { createRevisitState } from '../interview/revisit.js';
 import { MODELS, chatText } from '../llm/nebius.js';
@@ -61,7 +64,7 @@ const SENSITIVE_REMINDER =
   'Please do not send account, card, passport or tax numbers. Only approximate figures are needed.';
 
 const HELP =
-  'I can run /start for a new assessment, /revisit to update the last one, and /forget to delete everything I hold about you.';
+  'I can run /start for a new assessment, /revisit to update the last one, and /forget to delete everything I hold about you. During an assessment, /skip leaves a question out and /stop ends it with a report on what you have told me so far.';
 
 const NUDGE_QUESTION = 'Remind you in 6 or 12 months? (6 / 12 / no)';
 
@@ -135,8 +138,8 @@ function staticTurn(s: InterviewState, event: TurnEvent, reminder?: string): Out
         return event.explanation;
       case 'partial_stored':
         return `Saved: ${event.fieldIds.map(promptFor).join(', ')}.`;
-      case 'skip_refused':
-        return 'This one is needed to work out your position.';
+      case 'skipped':
+        return `Skipped "${promptFor(event.fieldId)}"; it will show as not assessed.`;
       case 'off_topic':
         return event.retries >= 2
           ? "Let us stay with the assessment. You can reply 'don't know' to skip this one."
@@ -184,7 +187,7 @@ function isSectionStart(field: FieldDef, event: TurnEvent): boolean {
 }
 
 function previousReport(userId: string, deps: HandlerDeps): string | undefined {
-  const latest = deps.store.listAssessments(userId).filter((a) => a.status === 'complete').at(-1);
+  const latest = deps.store.listAssessments(userId).filter((a) => a.status !== 'draft').at(-1);
   return latest === undefined ? undefined : summarizeAssessment(latest);
 }
 
@@ -330,26 +333,30 @@ async function complete(
   deps: HandlerDeps,
 ): Promise<Outgoing> {
   const now = (deps.now ?? (() => new Date()))();
-  const answers = state.answers as Answers;
+  const computed = runPartialAssessment(state.answers, state.assumptions, now, state.skipped ?? []);
   const assessment: Assessment = {
     id: crypto.randomUUID(),
     user_id: msg.userId,
     created_at: now.toISOString(),
-    status: 'complete',
-    base_currency: answers.base_currency,
-    answers,
+    status: computed.unanswered.length === 0 ? 'complete' : 'partial',
+    base_currency: computed.answers.base_currency ?? 'EUR',
     assumptions: state.assumptions,
-    ...runAssessment(answers, state.assumptions, now),
+    ...computed,
   };
 
-  const previous = state.mode === 'revisit' ? deps.store.latestComplete(msg.userId) : undefined;
+  const previous =
+    state.mode === 'revisit' && assessment.status === 'complete' ? deps.store.latestComplete(msg.userId) : undefined;
 
   log.info('interview complete → assessment computed', {
     userId: msg.userId,
     assessmentId: assessment.id,
+    status: assessment.status,
+    stopped: state.stopped === true,
     mode: state.mode,
     previousId: previous?.id,
     fired: assessment.blind_spots.map((b) => `${b.rule_id}:${b.severity}`),
+    unanswered: assessment.unanswered,
+    notAssessed: assessment.not_assessed,
   });
   log.debug('assessment detail', {
     answers: assessment.answers,
@@ -383,7 +390,9 @@ async function complete(
     });
   }
 
+  const gaps = renderGaps(assessment);
   const parts = [renderResults(assessment), renderActionPlan(assessment, whys)];
+  if (gaps !== null) parts.unshift(gaps);
   if (previous !== undefined) {
     const delta = compare(previous, assessment);
     log.debug('comparison with previous assessment', { previousId: previous.id, delta });
@@ -404,9 +413,9 @@ function handleNudgeChoice(text: string, msg: Incoming, deps: HandlerDeps): Outg
     return { text: 'No reminder then. Send /revisit whenever you want to update your picture.' };
   }
 
-  const assessment = deps.store.latestComplete(msg.userId);
+  const assessment = deps.store.listAssessments(msg.userId).at(-1);
   if (assessment === undefined) {
-    log.warn('nudge requested but no complete assessment found', { userId: msg.userId });
+    log.warn('nudge requested but no assessment found', { userId: msg.userId });
     return { text: 'No reminder then. Send /revisit whenever you want to update your picture.' };
   }
 
@@ -483,12 +492,36 @@ export async function handleMessage(msg: Incoming, deps: HandlerDeps): Promise<O
   return out;
 }
 
+function skip(stored: InterviewState, field: FieldDef, msg: Incoming, deps: HandlerDeps, redacted: boolean): Promise<Outgoing> {
+  const next = skipField(stored);
+  deps.store.saveState(next);
+  transition(`skip → ${field.id} left unanswered`, stored, next, { field: field.id, skipped: next.skipped });
+  return advance(stored, next, { kind: 'skipped', fieldId: field.id }, msg, deps, redacted);
+}
+
+function stop(stored: InterviewState, msg: Incoming, deps: HandlerDeps): Promise<Outgoing> {
+  const next = stopInterview(stored);
+  deps.store.saveState(next);
+  transition('stop → interview ended early', stored, next, { skipped: next.skipped });
+  return complete(next, msg, deps);
+}
+
 async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise<Outgoing> {
+  const stored = deps.store.loadState(msg.userId);
+
   if (trimmed.startsWith('/')) {
-    return handleCommand(trimmed.split(/\s+/)[0]!.toLowerCase(), msg, deps);
+    const command = trimmed.split(/\s+/)[0]!.toLowerCase();
+    const field = stored === undefined ? null : currentField(stored);
+    if ((command === '/skip' || command === '/stop') && stored !== undefined && field !== null) {
+      log.debug('command', { userId: msg.userId, command, field: field.id });
+      return command === '/skip' ? skip(stored, field, msg, deps, false) : stop(stored, msg, deps);
+    }
+    if (command === '/skip' || command === '/stop') {
+      return { text: `There is no assessment in progress. ${HELP}` };
+    }
+    return handleCommand(command, msg, deps);
   }
 
-  const stored = deps.store.loadState(msg.userId);
   log.debug('state loaded', { userId: msg.userId, state: stateSummary(stored) });
 
   if (stored !== undefined && stored.awaitingNudgeChoice === true) {
@@ -564,11 +597,7 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
     return advance(stored, next, { kind: 'partial_stored', fieldIds: Object.keys(intent.extra) as FieldId[] }, msg, deps, redacted);
   }
 
-  if (
-    intent.kind === 'answer' ||
-    intent.kind === 'dont_know' ||
-    (intent.kind === 'skip_request' && field.allowUnknown)
-  ) {
+  if (intent.kind === 'answer' || intent.kind === 'dont_know') {
     const value = intent.kind === 'answer' ? intent.value : null;
     const extra: Extra = intent.kind === 'answer' && intent.extra !== undefined ? intent.extra : {};
     const next = applyMany(applyAnswer(stored, value), extra);
@@ -581,10 +610,9 @@ async function route(msg: Incoming, trimmed: string, deps: HandlerDeps): Promise
     return advance(stored, next, event, msg, deps, redacted);
   }
 
-  if (intent.kind === 'skip_request') {
-    log.debug('skip refused: field is required', { field: field.id });
-    return advance(stored, stored, { kind: 'skip_refused' }, msg, deps, redacted);
-  }
+  if (intent.kind === 'skip_request') return skip(stored, field, msg, deps, redacted);
+
+  if (intent.kind === 'stop_request') return stop(stored, msg, deps);
 
   if (intent.kind === 'correction') {
     try {

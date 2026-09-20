@@ -38,6 +38,26 @@ describe('classifyIntent', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it('treats skip and stop synonyms deterministically', async () => {
+    const { client, create } = stubClient('{}');
+    expect(await classifyIntent(income, 'skip', { answered: {} }, { client })).toEqual({ kind: 'skip_request' });
+    expect(await classifyIntent(age, 'rather not say', { answered: {} }, { client })).toEqual({ kind: 'skip_request' });
+    expect(await classifyIntent(income, "that's enough", { answered: {} }, { client })).toEqual({ kind: 'stop_request' });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('keeps an exact option ahead of a skip synonym', async () => {
+    const { client } = stubClient('{}');
+    expect(await classifyIntent(lifeCover, 'no', { answered: {} }, { client })).toEqual({ kind: 'answer', value: 'no' });
+  });
+
+  it('parses a model stop_request', async () => {
+    const { client } = stubClient(JSON.stringify({ intent: 'stop_request' }));
+    expect(await classifyIntent(income, 'just give me what you have', { answered: {} }, { client })).toEqual({
+      kind: 'stop_request',
+    });
+  });
+
   it('accepts an exact option on a yes/no field without calling the model', async () => {
     const { client, create } = stubClient('{}');
     expect(await classifyIntent(lifeCover, 'yes', { answered: {} }, { client })).toEqual({

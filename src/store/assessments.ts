@@ -13,6 +13,8 @@ interface AssessmentRow {
   derived_json: string;
   results_json: string;
   blind_spots_json: string;
+  unanswered_json: string | null;
+  not_assessed_json: string | null;
 }
 
 function toAssessment(row: AssessmentRow): Assessment {
@@ -27,13 +29,15 @@ function toAssessment(row: AssessmentRow): Assessment {
     derived: JSON.parse(row.derived_json) as Assessment['derived'],
     results: JSON.parse(row.results_json) as Assessment['results'],
     blind_spots: JSON.parse(row.blind_spots_json) as Assessment['blind_spots'],
+    unanswered: JSON.parse(row.unanswered_json ?? '[]') as Assessment['unanswered'],
+    not_assessed: JSON.parse(row.not_assessed_json ?? '[]') as Assessment['not_assessed'],
   };
 }
 
 export function insertAssessment(db: BetterSqlite3.Database, a: Assessment): void {
   db.prepare(
-    `INSERT INTO assessments (id, user_id, created_at, status, base_currency, answers_json, assumptions_json, derived_json, results_json, blind_spots_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO assessments (id, user_id, created_at, status, base_currency, answers_json, assumptions_json, derived_json, results_json, blind_spots_json, unanswered_json, not_assessed_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     a.id,
     a.user_id,
@@ -45,6 +49,8 @@ export function insertAssessment(db: BetterSqlite3.Database, a: Assessment): voi
     JSON.stringify(a.derived),
     JSON.stringify(a.results),
     JSON.stringify(a.blind_spots),
+    JSON.stringify(a.unanswered),
+    JSON.stringify(a.not_assessed),
   );
 }
 

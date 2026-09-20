@@ -1,5 +1,5 @@
 import { COUNTRY_CURRENCY } from '../config/countryCurrency.js';
-import type { Answers, Topic } from '../questionnaire/schema.js';
+import type { Answers, FieldId, Topic } from '../questionnaire/schema.js';
 import type { Derived } from '../engine/derived.js';
 import type { Results } from '../engine/projection.js';
 
@@ -39,8 +39,12 @@ export interface Rule {
   id: RuleId;
   topic: Topic;
   baseSeverity: Severity;
+  /** Answer fields the rule reads (directly or via derived/results); it is only evaluated when all were asked. */
+  inputs: FieldId[];
   fires(ctx: RuleContext): boolean;
 }
+
+const SPEND: FieldId[] = ['spend_housing', 'spend_living', 'spend_debt', 'spend_other'];
 
 function positionAt(results: Results, rate: number): number | null {
   const entry = results.sensitivity.find((r) => r.withdrawal_rate === rate);
@@ -51,6 +55,7 @@ export const RULES: Rule[] = [
   {
     number: 1,
     id: 'thin_emergency_fund',
+    inputs: ['cash_total', ...SPEND],
     topic: 'savings',
     baseSeverity: 'high',
     fires: ({ answers, derived }) =>
@@ -61,6 +66,7 @@ export const RULES: Rule[] = [
   {
     number: 2,
     id: 'negative_surplus',
+    inputs: ['income_monthly', ...SPEND],
     topic: 'savings',
     baseSeverity: 'high',
     fires: ({ derived }) => derived.monthly_surplus !== null && derived.monthly_surplus < 0,
@@ -68,6 +74,7 @@ export const RULES: Rule[] = [
   {
     number: 3,
     id: 'family_unprotected',
+    inputs: ['dependants', 'life_cover'],
     topic: 'protection',
     baseSeverity: 'high',
     fires: ({ answers }) => answers.dependants > 0 && answers.life_cover !== 'yes',
@@ -75,6 +82,7 @@ export const RULES: Rule[] = [
   {
     number: 4,
     id: 'no_income_safety_net',
+    inputs: ['illness_cover'],
     topic: 'protection',
     baseSeverity: 'medium',
     fires: ({ answers }) => answers.illness_cover !== 'yes',
@@ -82,6 +90,7 @@ export const RULES: Rule[] = [
   {
     number: 5,
     id: 'no_health_cover',
+    inputs: ['health_cover'],
     topic: 'protection',
     baseSeverity: 'high',
     fires: ({ answers }) => answers.health_cover !== 'yes',
@@ -89,6 +98,7 @@ export const RULES: Rule[] = [
   {
     number: 6,
     id: 'succession_gap',
+    inputs: ['will', 'will_country', 'will_year', 'residence_country'],
     topic: 'succession',
     baseSeverity: 'medium',
     fires: ({ answers, now }) =>
@@ -99,6 +109,7 @@ export const RULES: Rule[] = [
   {
     number: 7,
     id: 'education_unfunded',
+    inputs: ['dependants', 'education_funded'],
     topic: 'education',
     baseSeverity: 'medium',
     fires: ({ answers }) => answers.dependants > 0 && answers.education_funded !== 'yes',
@@ -106,6 +117,7 @@ export const RULES: Rule[] = [
   {
     number: 8,
     id: 'pension_visibility',
+    inputs: ['pensions'],
     topic: 'retirement',
     baseSeverity: 'high',
     fires: ({ answers }) =>
@@ -114,6 +126,7 @@ export const RULES: Rule[] = [
   {
     number: 9,
     id: 'pension_timing_gap',
+    inputs: ['pensions', 'retire_age'],
     topic: 'retirement',
     baseSeverity: 'high',
     fires: ({ answers }) =>
@@ -124,6 +137,7 @@ export const RULES: Rule[] = [
   {
     number: 10,
     id: 'scattered_pensions',
+    inputs: ['pensions'],
     topic: 'cross_border',
     baseSeverity: 'medium',
     fires: ({ answers }) => new Set(answers.pensions.map((p) => p.pension_country)).size > 1,
@@ -131,6 +145,7 @@ export const RULES: Rule[] = [
   {
     number: 11,
     id: 'beneficiary_gap',
+    inputs: ['beneficiaries_named'],
     topic: 'succession',
     baseSeverity: 'medium',
     fires: ({ answers }) => answers.beneficiaries_named !== 'yes',
@@ -138,6 +153,7 @@ export const RULES: Rule[] = [
   {
     number: 12,
     id: 'fees_unknown',
+    inputs: ['fees_known'],
     topic: 'investments',
     baseSeverity: 'medium',
     fires: ({ answers }) => answers.fees_known !== 'yes',
@@ -145,6 +161,7 @@ export const RULES: Rule[] = [
   {
     number: 13,
     id: 'expensive_debt',
+    inputs: ['debt_max_rate', 'debt_total'],
     topic: 'debt',
     baseSeverity: 'high',
     fires: ({ answers }) =>
@@ -155,6 +172,7 @@ export const RULES: Rule[] = [
   {
     number: 14,
     id: 'debt_into_retirement',
+    inputs: ['debt_at_retirement'],
     topic: 'debt',
     baseSeverity: 'medium',
     fires: ({ answers }) => answers.debt_at_retirement === null || answers.debt_at_retirement > 0,
@@ -162,6 +180,7 @@ export const RULES: Rule[] = [
   {
     number: 15,
     id: 'cash_concentration',
+    inputs: ['cash_total', 'investments_total', 'pensions'],
     topic: 'investments',
     baseSeverity: 'low',
     fires: ({ answers, derived }) =>
@@ -173,6 +192,7 @@ export const RULES: Rule[] = [
   {
     number: 16,
     id: 'property_concentration',
+    inputs: ['home_value', 'home_mortgage', 'property_value', 'property_mortgage', 'cash_total', 'investments_total', 'pensions', 'debt_total'],
     topic: 'property',
     baseSeverity: 'low',
     fires: ({ derived }) =>
@@ -184,6 +204,7 @@ export const RULES: Rule[] = [
   {
     number: 17,
     id: 'currency_exposure',
+    inputs: ['cash_currency_mismatch', 'retire_country', 'base_currency'],
     topic: 'cross_border',
     baseSeverity: 'medium',
     fires: ({ answers }) => {
@@ -196,6 +217,7 @@ export const RULES: Rule[] = [
   {
     number: 18,
     id: 'single_point_of_failure',
+    inputs: ['has_partner', 'decision_maker', 'partner_knows'],
     topic: 'succession',
     baseSeverity: 'medium',
     fires: ({ answers }) =>
@@ -206,6 +228,7 @@ export const RULES: Rule[] = [
   {
     number: 19,
     id: 'retirement_gap',
+    inputs: ['age', 'retire_age', 'retire_income_monthly'],
     topic: 'retirement',
     baseSeverity: 'high',
     fires: ({ results }) => {
@@ -216,6 +239,7 @@ export const RULES: Rule[] = [
   {
     number: 20,
     id: 'lifestyle_reality_check',
+    inputs: ['retire_income_monthly', ...SPEND],
     topic: 'retirement',
     baseSeverity: 'low',
     fires: ({ answers, derived }) =>

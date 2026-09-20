@@ -9,7 +9,7 @@ export interface RateResult {
 }
 
 export interface Results {
-  mode: 'projection' | 'no_target' | 'already_retired' | 'no_gap';
+  mode: 'projection' | 'no_target' | 'already_retired' | 'no_gap' | 'not_assessed';
   years: number | null;
   required_pot: number | null;
   projected_assets: number | null;
@@ -22,7 +22,7 @@ export interface Results {
   excluded_pensions: number[];
 }
 
-function emptyResults(mode: Results['mode'], years: number | null): Results {
+export function emptyResults(mode: Results['mode'], years: number | null): Results {
   return {
     mode,
     years,

@@ -12,6 +12,7 @@ export type IntentKind =
   | 'question'
   | 'correction'
   | 'skip_request'
+  | 'stop_request'
   | 'off_topic'
   | 'command';
 
@@ -25,6 +26,7 @@ export type Intent =
   | { kind: 'command'; command: string }
   | { kind: 'dont_know' }
   | { kind: 'skip_request' }
+  | { kind: 'stop_request' }
   | { kind: 'off_topic' };
 
 export interface IntentContext {
@@ -34,6 +36,10 @@ export interface IntentContext {
 }
 
 const DONT_KNOW_SYNONYMS = ["don't know", 'dont know', 'not sure', 'no idea', 'unknown', '?'];
+
+const SKIP_SYNONYMS = ['skip', 'next', 'pass', 'rather not say', 'prefer not to say'];
+
+const STOP_SYNONYMS = ['stop', 'enough', "that's enough", 'thats enough', 'finish', 'give me the results', 'show me the results'];
 
 const NUMBER_TYPES = ['money', 'integer', 'percent', 'year'];
 
@@ -53,6 +59,14 @@ export function classifyIntentDeterministic(field: FieldDef, reply: string): Int
 
   if (DONT_KNOW_SYNONYMS.includes(trimmed.toLowerCase())) {
     return { kind: 'dont_know' };
+  }
+
+  if (SKIP_SYNONYMS.includes(trimmed.toLowerCase())) {
+    return { kind: 'skip_request' };
+  }
+
+  if (STOP_SYNONYMS.includes(trimmed.toLowerCase())) {
+    return { kind: 'stop_request' };
   }
 
   if (NUMBER_TYPES.includes(field.type) && /^-?\d+(\.\d+)?$/.test(trimmed)) {
@@ -175,6 +189,8 @@ async function classifyWithModel(
       return { kind: 'dont_know' };
     case 'skip_request':
       return { kind: 'skip_request' };
+    case 'stop_request':
+      return { kind: 'stop_request' };
     case 'off_topic':
       return { kind: 'off_topic' };
     default:

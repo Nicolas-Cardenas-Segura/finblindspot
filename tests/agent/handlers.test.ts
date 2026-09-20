@@ -179,6 +179,63 @@ describe('handleMessage', () => {
     expect(store.dueNudges('2027-12-31T00:00:00.000Z')).toHaveLength(0);
   });
 
+  it('accepts a skip on a required field and moves to the next question', async () => {
+    await startInterview();
+    await answerUntil('age');
+    expect(fieldNow()?.id).toBe('age');
+    intentOverride = { intent: 'skip_request' };
+    const out = await send("I'd rather not say");
+    intentOverride = null;
+    expect(fieldNow()?.id).not.toBe('age');
+    expect(state()?.skipped).toEqual(['age']);
+    expect('age' in (state()?.answers ?? {})).toBe(false);
+    expect(out.text).toContain('Skipped');
+  });
+
+  it('/skip works without the model and /stop ends with a partial report', async () => {
+    await startInterview();
+    await answerUntil('cash_total');
+    await send('/skip');
+    expect(state()?.skipped).toEqual(['cash_total']);
+    expect(fieldNow()?.id).not.toBe('cash_total');
+
+    const report = await send('/stop');
+    expect(report.text).toContain('partial picture');
+    expect(report.text.indexOf('partial picture')).toBeLessThan(report.text.indexOf('Blind spots I could not check'));
+    expect(report.text).toContain('no retirement projection to show');
+    expect(report.text).toContain('Remind you in 6 or 12 months?');
+
+    const saved = store.listAssessments(USER);
+    expect(saved).toHaveLength(1);
+    expect(saved[0]!.status).toBe('partial');
+    expect(saved[0]!.unanswered).toContain('cash_total');
+    expect(saved[0]!.unanswered).toContain('retire_age');
+    expect(saved[0]!.not_assessed).toContain('thin_emergency_fund');
+    expect(saved[0]!.blind_spots.map((b) => b.rule_id)).not.toContain('thin_emergency_fund');
+    expect(saved[0]!.answers.cash_total).toBeNull();
+    expect(state()?.awaitingNudgeChoice).toBe(true);
+
+    const nudged = await send('6');
+    expect(nudged.text).toContain('remind you');
+    expect(store.dueNudges('2026-08-15T00:00:00.000Z')).toHaveLength(1);
+  });
+
+  it('a natural-language stop request produces the same report as /stop', async () => {
+    await startInterview();
+    await answerUntil('cash_total');
+    intentOverride = { intent: 'stop_request' };
+    const report = await send('just show me what you have so far');
+    intentOverride = null;
+    expect(report.text).toContain('partial picture');
+    expect(store.listAssessments(USER)[0]!.status).toBe('partial');
+  });
+
+  it('/stop with nothing in progress explains the commands', async () => {
+    const out = await send('/stop');
+    expect(out.text).toContain('no assessment in progress');
+    expect(store.listAssessments(USER)).toHaveLength(0);
+  });
+
   it('re-asks the same field when the user asks a question', async () => {
     await startInterview();
     await answerUntil('spend_living');

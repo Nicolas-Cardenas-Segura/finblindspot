@@ -57,7 +57,9 @@ CREATE TABLE IF NOT EXISTS assessments (
   assumptions_json TEXT,
   derived_json TEXT,
   results_json TEXT,
-  blind_spots_json TEXT
+  blind_spots_json TEXT,
+  unanswered_json TEXT,
+  not_assessed_json TEXT
 );
 CREATE TABLE IF NOT EXISTS interview_state (
   user_id TEXT PRIMARY KEY,
@@ -82,10 +84,20 @@ CREATE TABLE IF NOT EXISTS compliance_triggers (
 );
 `;
 
+function migrate(db: Database.Database): void {
+  const columns = new Set(
+    (db.prepare(`PRAGMA table_info(assessments)`).all() as { name: string }[]).map((c) => c.name),
+  );
+  for (const column of ['unanswered_json', 'not_assessed_json']) {
+    if (!columns.has(column)) db.exec(`ALTER TABLE assessments ADD COLUMN ${column} TEXT`);
+  }
+}
+
 export function openStore(path: string | ':memory:'): Store {
   const db = new Database(path);
   db.pragma('journal_mode = WAL');
   db.exec(SCHEMA);
+  migrate(db);
 
   return {
     insertAssessment: (a) => insertAssessment(db, a),

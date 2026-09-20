@@ -8,7 +8,7 @@ import type { Assessment } from '../../src/assess/assess.js';
 import { BASE } from '../fixtures/cases.js';
 
 function makeAssessment(id: string, userId: string, createdAt: string): Assessment {
-  const { derived, results, blind_spots } = runAssessment(BASE, DEFAULT_ASSUMPTIONS, new Date(createdAt));
+  const { derived, results, blind_spots, unanswered, not_assessed } = runAssessment(BASE, DEFAULT_ASSUMPTIONS, new Date(createdAt));
   return {
     id,
     user_id: userId,
@@ -20,6 +20,8 @@ function makeAssessment(id: string, userId: string, createdAt: string): Assessme
     derived,
     results,
     blind_spots,
+    unanswered,
+    not_assessed,
   };
 }
 
