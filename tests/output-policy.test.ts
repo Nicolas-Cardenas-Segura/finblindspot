@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseVerdict, prefilter, approveCandidate } from '../src/guardrail/output-policy';
 import { checkInput } from '../src/guardrail/input-policy';
-import { questions } from '../src/core/interview';
+import { privacyMessages, questions } from '../src/core/interview';
 
 describe('delivery protocol, not model accuracy', () => {
   it.each(['', 'ALLOW', '{"decision":"ALLOW"}', '{"decision":"allow","reasonCode":"educational"}', '{"decision":"ALLOW","reasonCode":"educational","extra":1}'])('fails closed on %s', raw => {
@@ -26,6 +26,12 @@ describe('delivery protocol, not model accuracy', () => {
     expect(approveCandidate(question, null)).toBeNull();
     expect(approveCandidate(question, { decision: 'BLOCK', reasonCode: 'sensitive' })).toBeNull();
     expect(approveCandidate(question, { decision: 'ALLOW', reasonCode: 'educational' })?.text).toBe(question);
+  });
+  it.each(Object.entries(privacyMessages))('requires classification for the %s privacy message', (_name, message) => {
+    expect(prefilter(message)).toBe(false);
+    expect(approveCandidate(message, null)).toBeNull();
+    expect(approveCandidate(message, { decision: 'BLOCK', reasonCode: 'uncertain' })).toBeNull();
+    expect(approveCandidate(message, { decision: 'ALLOW', reasonCode: 'educational' })?.text).toBe(message);
   });
   it('returns an approved value only for safe, classified text', () => {
     expect(approveCandidate('Emergency runway measures accessible cash relative to spending.', { decision: 'ALLOW', reasonCode: 'educational' })?.text).toContain('Emergency runway');

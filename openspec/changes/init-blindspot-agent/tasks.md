@@ -6,7 +6,7 @@
 - [ ] 1.2 Configure Nebius model routing and strict classifier client; verify types plus authenticated catalogue/schema/tool/verdict smoke checks with synthetic data.
 - [x] 1.3 Configure private Mastra Telegram handlers with no pre-validation output and verified webhook secrets; verify real messages from a separate phone.
 - [ ] 1.4 Deploy one persistent Railway process with explicit volume paths; verify health, denied raw framework APIs and persisted state after restart.
-- [ ] 1.5 Configure authenticated Galtea init/message/finalize Endpoint Connections against the real turn pipeline; verify isolated multi-turn sessions without Telegram sends.
+- [ ] 1.5 Configure an authenticated Galtea Conversation connection using native session IDs, with optional finalization and preserved explicit-init compatibility; verify the platform connection test and isolated multi-turn sessions without Telegram sends.
 
 ## 2. Profile and Deterministic Core
 
@@ -24,6 +24,8 @@
 - [ ] 3.4 Implement deterministic report facts plus grounded educational explanations; verify factual references and real model advice-boundary cases.
 - [ ] 3.5 Implement revisit and labelled six-month simulation without baseline mutation; verify baseline/new snapshot comparison and real timestamps.
 - [x] 3.6 Implement retention, confirmed forget and expiring hashed report capabilities; verify revocation, isolation, deletion and framework/eval access controls.
+- [x] 3.7 Add warm AI-transparent interview wording, factual acknowledgements and contextual natural-language navigation; verify offline consent/state checks, live safety cases and a complete synthetic quick conversation with unchanged report arithmetic.
+- [x] 3.8 Retain validated country and monetary drafts, distinguish held currencies from reporting preference, and prevent guessed currency on bare amounts; verify targeted follow-ups, currency-only completion, opening context and draft persistence with offline and live synthetic checks.
 
 ## 4. Evaluation and Read-only Dashboard
 

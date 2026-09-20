@@ -18,6 +18,8 @@
     "start": "node --import dotenv/config .mastra/output/index.mjs",
     "verify:models": "tsx scripts/verify-models.ts",
     "verify:access": "tsx scripts/verify-access.ts",
+    "verify:eval": "tsx scripts/verify-eval.ts",
+    "verify:clarification": "tsx scripts/verify-clarification.ts",
     "register:webhook": "tsx scripts/register-telegram-webhook.ts"
   },
   "dependencies": {

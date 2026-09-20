@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { Client, InStatement } from '@libsql/client';
 import { emptyProfile, profileSchema, type FinancialProfile } from '../core/profile';
 import { initialState, stateSchema, type InterviewState } from '../core/interview';
@@ -8,6 +8,8 @@ import { openDatabase, prepareDatabase } from './database';
 export type AssessmentRecord = { owner: string; profile: FinancialProfile; state: InterviewState; expiresAt: number };
 export type Snapshot = { id: string; report: Report; text: string };
 export type Capability = { token: string; hash: string; expiresAt: number };
+export type GalteaSessionResolution = { status: 'ready'; owner: string } | { status: 'limit' } | { status: 'expired' };
+const galteaSessionKey = (id: string) => createHash('sha256').update(`galtea:${id}`).digest('hex');
 export const hashCapability = (token: string) => createHash('sha256').update(token).digest('hex');
 export const newCapability = (ttlMs: number): Capability => { const token = randomBytes(32).toString('base64url'); return { token, hash: hashCapability(token), expiresAt: Date.now() + ttlMs }; };
 export class AssessmentRepository {
@@ -19,6 +21,7 @@ export class AssessmentRepository {
     await this.client.executeMultiple(`
       PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS assessments (owner TEXT PRIMARY KEY, profile TEXT NOT NULL, state TEXT NOT NULL, expires_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS galtea_sessions (external_hash TEXT PRIMARY KEY, owner TEXT NOT NULL UNIQUE);
       CREATE TABLE IF NOT EXISTS turns (owner TEXT NOT NULL, turn_id TEXT NOT NULL, response TEXT NOT NULL, PRIMARY KEY(owner, turn_id));
       CREATE TABLE IF NOT EXISTS snapshots (id TEXT PRIMARY KEY, owner TEXT NOT NULL, report TEXT NOT NULL, profile TEXT NOT NULL, response TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS snapshots_owner ON snapshots(owner, created_at);
@@ -31,9 +34,27 @@ export class AssessmentRepository {
     if (!rows[0]) return null;
     return { owner, profile: profileSchema.parse(JSON.parse(String(rows[0].profile))), state: stateSchema.parse(JSON.parse(String(rows[0].state))), expiresAt: Number(rows[0].expires_at) };
   }
-  async createSession(owner: string): Promise<void> {
+  async createSession(owner: string): Promise<boolean> {
     const record = this.fresh(owner);
-    await this.client.execute({ sql: 'INSERT INTO assessments(owner,profile,state,expires_at) VALUES(?,?,?,?)', args: [owner, JSON.stringify(record.profile), JSON.stringify(record.state), record.expiresAt] });
+    const result = await this.client.execute({ sql: "INSERT INTO assessments(owner,profile,state,expires_at) SELECT ?,?,?,? WHERE (SELECT count(*) FROM assessments WHERE owner LIKE 'eval:%' AND expires_at>?)<500", args: [owner, JSON.stringify(record.profile), JSON.stringify(record.state), record.expiresAt, Date.now()] });
+    return result.rowsAffected === 1;
+  }
+  async resolveGalteaSession(externalId: string, maxActiveSessions = 500): Promise<GalteaSessionResolution> {
+    const key = galteaSessionKey(externalId);
+    const record = this.fresh(`eval:${randomUUID()}`);
+    const results = await this.client.batch([
+      { sql: "INSERT OR IGNORE INTO galtea_sessions(external_hash,owner) SELECT ?,? WHERE (SELECT count(*) FROM assessments WHERE owner LIKE 'eval:%' AND expires_at>?)<?", args: [key, record.owner, Date.now(), maxActiveSessions] },
+      { sql: 'INSERT INTO assessments(owner,profile,state,expires_at) SELECT owner,?,?,? FROM galtea_sessions WHERE external_hash=? AND owner=? ON CONFLICT(owner) DO NOTHING', args: [JSON.stringify(record.profile), JSON.stringify(record.state), record.expiresAt, key, record.owner] },
+      { sql: 'SELECT g.owner,a.expires_at FROM galtea_sessions g LEFT JOIN assessments a ON a.owner=g.owner WHERE g.external_hash=?', args: [key] },
+    ], 'write');
+    const row = results[2].rows[0];
+    if (!row) return { status: 'limit' };
+    if (row.expires_at === null || Number(row.expires_at) <= Date.now()) return { status: 'expired' };
+    return { status: 'ready', owner: String(row.owner) };
+  }
+  async galteaSessionOwner(externalId: string): Promise<string | null> {
+    const { rows } = await this.client.execute({ sql: 'SELECT owner FROM galtea_sessions WHERE external_hash=?', args: [galteaSessionKey(externalId)] });
+    return rows[0] ? String(rows[0].owner) : null;
   }
   async requestForget(record: AssessmentRecord): Promise<void> {
     await this.client.execute({ sql: 'UPDATE assessments SET state=? WHERE owner=?', args: [JSON.stringify({ ...record.state, forgetRequested: true }), record.owner] });
@@ -85,7 +106,7 @@ export class AssessmentRepository {
     return rows[0] ? { id: String(rows[0].id), report: JSON.parse(String(rows[0].report)), text: String(rows[0].response) } : null;
   }
   async forget(owner: string): Promise<void> {
-    await this.client.batch(['capabilities', 'snapshots', 'turns', 'assessments'].map(table => ({ sql: `DELETE FROM ${table} WHERE owner=?`, args: [owner] })), 'write');
+    await this.client.batch(['galtea_sessions', 'capabilities', 'snapshots', 'turns', 'assessments'].map(table => ({ sql: `DELETE FROM ${table} WHERE owner=?`, args: [owner] })), 'write');
   }
   async expiredOwners(): Promise<string[]> {
     const { rows } = await this.client.execute({ sql: 'SELECT owner FROM assessments WHERE expires_at<=?', args: [Date.now()] });

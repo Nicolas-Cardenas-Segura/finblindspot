@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const currencySchema = z.string().regex(/^[A-Z]{3}$/);
-const countrySchema = z.string().regex(/^[A-Z]{2}$/);
+export const countrySchema = z.string().regex(/^[A-Z]{2}$/).describe('ISO 3166-1 alpha-2 country code, for example ES for Spain, GB for the United Kingdom, US for the United States. Never invent abbreviations such as SP for Spain.');
 export const rangeSchema = z.strictObject({ min: z.number().finite().nonnegative().max(1e12), max: z.number().finite().nonnegative().max(1e12) }).refine(v => v.max >= v.min, 'Range maximum must not be below minimum');
 export const moneySchema = z.strictObject({ min: z.number().finite().nonnegative().max(1e12), max: z.number().finite().nonnegative().max(1e12), currency: currencySchema, period: z.enum(['monthly', 'annual', 'balance']) }).refine(v => v.max >= v.min, 'Invalid range');
 export const answer = <T extends z.ZodType>(value: T) => z.union([

@@ -39,6 +39,22 @@ The system SHALL expose authenticated evaluation sessions that use the same turn
 - **WHEN** a request lacks a valid dedicated evaluation credential
 - **THEN** it cannot start a session, invoke a model or retrieve a response.
 
+#### Scenario: First message with a native evaluation session identifier
+- **WHEN** an authenticated evaluation request supplies a valid native session identifier and a message without a prior initialization call
+- **THEN** the system creates an isolated internal evaluation session and processes the message through the same safety pipeline as Telegram.
+
+#### Scenario: Resumption and isolation
+- **WHEN** subsequent requests reuse one native evaluation session identifier while another test uses a different identifier
+- **THEN** the first conversation resumes its own persisted progress without sharing state with the second test, including after restart.
+
+#### Scenario: Invalid or ambiguous evaluation identity
+- **WHEN** a request has an empty or unrendered identifier, supplies both identifier types, or supplies a caller-selected owner
+- **THEN** the request is rejected without selecting a shared default session or creating an assessment.
+
+#### Scenario: Native session finalization
+- **WHEN** an authenticated request finalizes a native evaluation session
+- **THEN** its assessment, memory and identifier mapping are removed; reusing that native identifier later starts fresh and cannot recover deleted state.
+
 #### Scenario: Reproducible evaluation
 - **WHEN** a failure is fixed and re-evaluated
 - **THEN** evidence identifies the frozen cases, fresh session setup, application and evaluator versions, sample counts and errors without fabricating improvement.

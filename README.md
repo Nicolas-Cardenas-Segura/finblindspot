@@ -12,7 +12,7 @@ Local implementation includes the deterministic engine, quick/full interview orc
 
 The live smoke corpus includes every interview question, representative acknowledgements, and prohibited advice/credential requests. It caught a classifier false positive on permitted country/income questions: the policy now distinguishes coarse assessment data from prohibited identifiers, without bypassing the independent classifier. These smoke checks are not a substitute for Galtea or proof of perfect safety.
 
-Known unfinished behavior: post-report educational follow-up Q&A still needs implementation; bare numeric answers can currently inherit a currency without explicit confirmation; production-mode Railway dependency installation still needs verification. Use fictional data and explicit currency/period units while testing. The six-month follow-up is a labelled simulation, not an automatic scheduler.
+Known unfinished behavior: post-report educational follow-up Q&A still needs implementation; production-mode Railway dependency installation still needs verification. Use fictional data and explicit currency/period units while testing. The six-month follow-up is a labelled simulation, not an automatic scheduler.
 
 ## macOS local installation and testing
 
@@ -308,7 +308,11 @@ npm run register:webhook -- --confirm
 
 Registration preserves pending updates. Do not use the same bot with a local polling process. The adapter verifies the webhook secret; raw framework/memory APIs require authentication and are not made public.
 
-Commands: `/start`, `/quick`, `/full`, `/resume`, `/skip`, `/report`, `/edit income` (or another domain), `/revisit`, `/simulate6months`, `/forget`, `/confirmforget`, `/cancel`, `/help`.
+The chat introduces itself as **MyFinGap**, an AI financial education assistant; existing internal IDs and the configured Telegram handle are unchanged. The guided conversation uses gentle question transitions and factual acknowledgements instead of technical `Recorded ...` messages. Common replies such as “a quick check, please”, “a more detailed look”, “continue”, “show my report”, “update my figures” and “skip” are supported. Path-choice phrases are interpreted when choosing a path or after completion, not in the middle of a financial answer. This is still a guided assessment, not unrestricted financial-adviser chat.
+
+“Start fresh” requests deletion confirmation; it does not delete anything immediately. A casual “yes” never substitutes for the explicit `/confirmforget` deletion command. Slash-command shortcuts remain available: `/start`, `/quick`, `/full`, `/resume`, `/skip`, `/report`, `/edit income` (or another domain), `/revisit`, `/simulate6months`, `/forget`, `/confirmforget`, `/cancel`, `/help`.
+
+Validated partial country/currency and simple money answers are retained separately from the scored profile. For example, “Spain, dollars and euros” keeps Spain and asks which currency should label the report; it does not assume that all holdings share that currency or convert them. “4000” can be retained while the bot asks for its currency, and “US dollars” can complete that answer. Country information in an opening message is retained across the path choice. Explicit unknown/skip answers are different from an incomplete answer. Drafts survive restart, share assessment retention/deletion, and do not become scored facts until complete. `npm run verify:clarification` exercises these scenarios with synthetic sessions and model calls, then cleans up only those test sessions.
 
 The quick path assesses country/base currency, income, essential expenditure, cash and debt payments. Other cards remain **not assessed**. The full path adds age, previous countries, pensions, investments, property, dependants, protection, goals, retirement age and confidence. Clarifications can add turns. Corrections to previously recorded fields require confirmation.
 
@@ -371,17 +375,47 @@ Volume-backed services have a brief interruption on deploy and cannot use replic
 
 ## Galtea
 
-Use HTTPS Endpoint Connections in the Galtea dashboard; the running app needs no Python service.
+Use HTTPS Endpoint Connections in the Galtea dashboard; the running app needs no Python service. Galtea documents `{{ galtea_session_id }}` as its own session identifier, distinct from an external `{{ session_id }}` supplied by the product. See [template syntax](https://docs.galtea.ai/concepts/product/endpoint-connection-template-syntax) and the [dashboard workflow](https://docs.galtea.ai/sdk/tutorials/direct-inferences-and-evaluations-from-platform).
 
-- Initialization: `POST /api/eval/init`, bearer `EVAL_API_TOKEN`; extract `session_id` from `$.session_id`.
-- Conversation: `POST /api/eval/message`, same bearer. Request template:
+### Recommended: one Conversation connection
+
+This avoids the onboarding wizard's requirement to test the conversation before creating its optional initialization connection.
+
+- URL: your current public HTTPS origin plus `/api/eval/message`.
+- Method: `POST`.
+- Authentication: Bearer, with the value of `EVAL_API_TOKEN` only.
+- Input Template (replace the whole default OpenAI example):
 
 ```json
-{"session_id":"{{ session_id }}","message":"{{ input.user_message }}","turn_id":"{{ trace_id }}"}
+{
+  "galtea_session_id": "{{ galtea_session_id }}",
+  "message": "{{ input.user_message }}"
+}
 ```
 
-- Output mapping: `{"output":"$.response"}`.
+- Output Mapping: `{"output":"$.response"}`.
+- Headers: `Content-Type: application/json` and the form's `Authorization: Bearer {{ bearer_token }}`.
+- Timeout: 60 seconds. Initial rate limit: 15 requests/minute. Keep automatic retries disabled during connection setup.
+- Uncheck **Initialization** and **Finalization** for the initial single-connection setup, then use **Test Connection** before creating the connection.
+
+The first authenticated message for a native Galtea ID atomically creates a random internal `eval:` session. Later turns with that same native ID resume it, including after an app restart. Different native IDs never share a fallback session. The identifier is stored hashed, and cannot directly select a Telegram user or an existing UUID-based evaluation session. Empty IDs, unrendered placeholders and requests supplying both ID types are rejected. Never replace the template variable with a shared constant; Galtea supplies the per-conversation value.
+
+The response contains `response` and the internal `session_id`; only `response` needs an output mapping in native-ID mode. The app uses the `X-Galtea-Inference-Id` header for turn deduplication when available. You may additionally supply `"turn_id":"{{ trace_id }}"` once its population has been verified in the platform.
+
+Sessions still expire under the configured retention policy. For larger evaluations, add an optional Finalization connection to `POST /api/eval/finalize`, with the same bearer secret and body `{"galtea_session_id":"{{ galtea_session_id }}"}`. It deletes the test session, its memory and the native-ID mapping. A later message reusing a finalized native ID starts a fresh internal session, not the deleted conversation. There is a shared cap of 500 active evaluation sessions, so use finalization before large/repeated runs.
+
+To smoke-test the native and explicit contracts against the configured live HTTPS endpoint, run `npm run verify:eval` (or the pinned `appnpm` equivalent). It consumes model credits, uses synthetic data only, verifies authentication/isolation/resumption plus privacy confirmation, cancellation and fresh-start behavior, and cleans up only the test sessions it creates. It does not register a Telegram webhook, send Telegram messages, or count as a Galtea platform evaluation.
+
+### Existing explicit initialization API
+
+The original three-step contract remains supported for clients that can initialize before sending messages:
+
+- Initialization: `POST /api/eval/init`, bearer `EVAL_API_TOKEN`; extract the returned UUID `session_id` from `$.session_id`.
+- Conversation: `POST /api/eval/message`, same bearer, with `{"session_id":"{{ session_id }}","message":"{{ input.user_message }}"}`.
+- Output Mapping: `{"output":"$.response"}`.
 - Finalization: `POST /api/eval/finalize` with `{"session_id":"{{ session_id }}"}`.
+
+Do not mix the two ID fields in one request. An arbitrary placeholder such as `thread_abc123` is not a valid initialized UUID; the explicit contract continues to reject it.
 
 Use synthetic profiles. `evals/fixtures.json` contains initial defensive cases, not fabricated results. Each Security dataset covers one threat. Include advice attacks, factual/missing-data failures and benign task completion. Capture the first functioning baseline, fix real failures, and rerun frozen cases with fresh sessions and unchanged evaluator settings. Record commit/model/rules/prompt/evaluator versions, case counts, actual failures and infrastructure errors. Replace the pending evidence state only with sanitised genuine exports.
 
