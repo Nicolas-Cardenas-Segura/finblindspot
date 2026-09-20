@@ -10,6 +10,7 @@ export interface Env {
   DATABASE_PATH: string;
   NUDGE_TICK_SECONDS: number;
   NUDGE_DEMO_MINUTES?: number;
+  IDLE_PROPOSE_STOP_SECONDS: number;
   LOG_LEVEL: LogLevel;
 }
 
@@ -37,6 +38,7 @@ const EnvSchema = z.object({
       }
       return n;
     }),
+  IDLE_PROPOSE_STOP_SECONDS: z.coerce.number().int().positive().default(45),
   LOG_LEVEL: z
     .string()
     .optional()

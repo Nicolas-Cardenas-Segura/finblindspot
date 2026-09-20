@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { HandlerDeps } from './agent/handlers.js';
 import { handleMessage } from './agent/handlers.js';
+import { createIdleWatcher } from './agent/idle.js';
 import { sendMessage, startTelegram, stopTelegram } from './agent/telegram.js';
 import { loadEnv } from './config/env.js';
 import { classifyOutbound } from './guardrail/classifier.js';
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
     nebiusBaseUrl: env.NEBIUS_BASE_URL,
     nudgeTickSeconds: env.NUDGE_TICK_SECONDS,
     nudgeDemoMinutes: env.NUDGE_DEMO_MINUTES,
+    idleProposeStopSeconds: env.IDLE_PROPOSE_STOP_SECONDS,
     node: process.version,
   });
   if (env.LOG_LEVEL === 'debug') {
@@ -47,7 +49,18 @@ async function main(): Promise<void> {
     nudgeDemoMinutes: env.NUDGE_DEMO_MINUTES,
   };
 
-  const telegram = startTelegram(env.TELEGRAM_BOT_TOKEN, (m) => handleMessage(m, deps));
+  const watcher = createIdleWatcher({
+    seconds: env.IDLE_PROPOSE_STOP_SECONDS,
+    store,
+    send: sendMessage,
+  });
+  const telegram = startTelegram(env.TELEGRAM_BOT_TOKEN, async (m) => {
+    const outgoing = await handleMessage(m, deps);
+    const state = store.loadState(m.userId);
+    if (state !== undefined && !state.complete) watcher.touch(m.userId);
+    else watcher.clear(m.userId);
+    return outgoing;
+  });
   const scheduler = startNudgeScheduler({
     store,
     send: sendMessage,
@@ -56,12 +69,14 @@ async function main(): Promise<void> {
   const shutdown = (signal: string) => {
     log.info('shutting down', { signal });
     scheduler.stop();
+    watcher.stop();
     void stopTelegram().catch((err: unknown) => log.error('stop failed', errorData(err)));
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));
   await telegram;
   scheduler.stop();
+  watcher.stop();
 }
 
 main().catch((err: unknown) => {
